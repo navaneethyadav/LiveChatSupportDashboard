@@ -13,7 +13,7 @@ from app.schemas.ticket_schema import (
     TicketAssign
 )
 
-from app.services.email_service import send_email
+# from app.services.email_service import send_email
 
 
 router = APIRouter()
@@ -48,11 +48,12 @@ async def create_ticket(
     db.commit()
 
 
-    await send_email(
-        subject="Ticket Created Successfully",
-        email="navaneethkaku@gmail.com",
-        body=f"Your ticket '{new_ticket.title}' has been created successfully."
-    )
+    # EMAIL TEMPORARILY DISABLED
+    # await send_email(
+    #     subject="Ticket Created Successfully",
+    #     email="navaneethkaku@gmail.com",
+    #     body=f"Your ticket '{new_ticket.title}' has been created successfully."
+    # )
 
 
     return {
@@ -104,13 +105,6 @@ async def update_ticket_status(
     db.commit()
 
 
-    await send_email(
-        subject="Ticket Status Updated",
-        email="navaneethkaku@gmail.com",
-        body=f"Ticket '{ticket.title}' marked as {status}."
-    )
-
-
     return {
         "message": "Ticket updated successfully",
         "ticket": ticket
@@ -154,13 +148,6 @@ async def assign_ticket(
     db.commit()
 
 
-    await send_email(
-        subject="Ticket Assigned",
-        email="navaneethkaku@gmail.com",
-        body=f"Ticket '{ticket.title}' assigned to {payload.assigned_to}."
-    )
-
-
     return {
         "message": "Ticket assigned successfully",
         "ticket": ticket
@@ -200,3 +187,4 @@ def delete_ticket(
     return {
         "message": "Ticket deleted successfully"
     }
+    
