@@ -21,7 +21,7 @@ function LiveChat() {
     fetchMessages()
 
     const socket = new WebSocket(
-      "ws://127.0.0.1:8000/ws/chat"
+      "wss://livechatsupportdashboard.onrender.com/ws/chat"
     )
 
     socketRef.current = socket
@@ -43,6 +43,18 @@ function LiveChat() {
         ...prev,
         parsedMessage
       ])
+    }
+
+
+    socket.onclose = () => {
+
+      console.log("WebSocket disconnected")
+    }
+
+
+    socket.onerror = (error) => {
+
+      console.log("WebSocket error:", error)
     }
 
 
