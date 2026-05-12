@@ -31,6 +31,8 @@ function Dashboard() {
     high_priority: 0
   })
 
+  const [loading, setLoading] = useState(true)
+
 
   const fetchStats = async () => {
 
@@ -45,6 +47,10 @@ function Dashboard() {
     } catch (error) {
 
       console.log(error)
+
+    } finally {
+
+      setLoading(false)
     }
   }
 
@@ -54,6 +60,31 @@ function Dashboard() {
     fetchStats()
 
   }, [])
+
+
+  if (loading) {
+
+    return (
+
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+
+        <div className="text-center">
+
+          <div className="w-14 h-14 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-5"></div>
+
+          <h2 className="text-2xl font-bold mb-2">
+            Loading Dashboard
+          </h2>
+
+          <p className="text-slate-400">
+            Fetching latest support analytics...
+          </p>
+
+        </div>
+
+      </div>
+    )
+  }
 
 
   return (
