@@ -1,52 +1,85 @@
 # Live Chat Support Dashboard
 
-A modern full-stack customer support dashboard built using React, FastAPI, and PostgreSQL.
+Enterprise-level full-stack support desk and live chat management platform built using FastAPI, React.js, PostgreSQL, and WebSockets.
 
 ---
 
-## Features
+# Features
 
+## Authentication & Security
 - JWT Authentication
 - Protected Routes
-- Ticket Management System
-- Create / Resolve / Delete Tickets
-- Live Dashboard Analytics
-- Ticket Search & Filters
-- Responsive Professional UI
-- Realtime Dashboard Charts
-- PostgreSQL Database Integration
-- REST API Architecture
+- Role-Based Access Control (RBAC)
+- Admin / Support / User Roles
+
+## Dashboard & Analytics
+- Ticket Analytics
+- Real-Time Statistics
+- Interactive Charts
+- Live Activity Logs
+
+## Ticket Management
+- Create Tickets
+- Assign Tickets
+- Resolve Tickets
+- Delete Tickets
+- Priority Management
+
+## Live Chat System
+- WebSocket Real-Time Chat
+- Persistent Chat History
+- Multi-User Chat Support
+
+## Admin Management
+- Users Management Panel
+- Dynamic Role Management
+- Enterprise Admin Dashboard
+
+## Notifications & Reporting
+- Notification Center
+- CSV Export Reports
+- Enterprise Logs System
+
+## Email Automation
+- Ticket Created Email
+- Ticket Assigned Email
+- Ticket Resolved Email
+
+## AI Chatbot
+- FAQ Chatbot
+- Smart Auto Replies
+- Support Assistant API
 
 ---
 
-## Tech Stack
+# Tech Stack
 
-### Frontend
-- React
-- Vite
+## Frontend
+- React.js
 - Tailwind CSS
 - Axios
-- React Router DOM
 - Recharts
 
-### Backend
+## Backend
 - FastAPI
 - SQLAlchemy
+- WebSockets
 - JWT Authentication
+
+## Database
 - PostgreSQL
 
 ---
 
-## Project Structure
+# Project Architecture
 
-frontend/
-backend/
+User → Ticket System → Support Team → Status Tracking → Resolution → Feedback
 
 ---
 
-## Installation
+# Installation
 
-### Backend Setup
+## Backend Setup
 
 ```bash
 cd backend
