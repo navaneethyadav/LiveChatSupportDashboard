@@ -4,7 +4,10 @@ import {
   FiSettings
 } from "react-icons/fi"
 
-import { Link } from "react-router-dom"
+import {
+  Link,
+  useNavigate
+} from "react-router-dom"
 
 import {
   getUserName,
@@ -15,6 +18,20 @@ import {
 function Sidebar() {
 
   const userName = getUserName()
+
+  const navigate = useNavigate()
+
+
+  const logout = () => {
+
+    localStorage.removeItem("token")
+
+    localStorage.removeItem("role")
+
+    localStorage.removeItem("full_name")
+
+    navigate("/")
+  }
 
 
   return (
@@ -89,15 +106,27 @@ function Sidebar() {
       </div>
 
 
-      <div className="bg-slate-800 p-4 rounded-xl">
+      <div>
 
-        <p className="text-sm text-slate-400">
-          Logged in as
-        </p>
+        <div className="bg-slate-800 p-4 rounded-xl mb-4">
 
-        <h2 className="text-lg font-semibold mt-1">
-          {userName}
-        </h2>
+          <p className="text-sm text-slate-400">
+            Logged in as
+          </p>
+
+          <h2 className="text-lg font-semibold mt-1">
+            {userName}
+          </h2>
+
+        </div>
+
+
+        <button
+          onClick={logout}
+          className="w-full bg-red-500 hover:bg-red-600 transition py-3 rounded-xl font-semibold"
+        >
+          Logout
+        </button>
 
       </div>
 
