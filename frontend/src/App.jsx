@@ -1,15 +1,22 @@
 import { Routes, Route } from "react-router-dom"
 
 import Login from "./pages/Login"
+
 import Signup from "./pages/Signup"
+
 import Dashboard from "./pages/Dashboard"
+
 import Tickets from "./pages/Tickets"
 
-import ProtectedRoute from "./routes/ProtectedRoute"
+import AdminPanel from "./pages/AdminPanel"
+
+import ProtectedRoute from "./components/ProtectedRoute"
+
 
 function App() {
 
   return (
+
     <Routes>
 
       <Route
@@ -17,10 +24,12 @@ function App() {
         element={<Login />}
       />
 
+
       <Route
         path="/signup"
         element={<Signup />}
       />
+
 
       <Route
         path="/dashboard"
@@ -31,11 +40,22 @@ function App() {
         }
       />
 
+
       <Route
         path="/tickets"
         element={
           <ProtectedRoute>
             <Tickets />
+          </ProtectedRoute>
+        }
+      />
+
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            <AdminPanel />
           </ProtectedRoute>
         }
       />

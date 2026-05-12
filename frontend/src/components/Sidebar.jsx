@@ -1,59 +1,108 @@
 import {
-    FiHome,
-    FiClipboard,
-    FiLogOut
-  } from "react-icons/fi"
-  
-  import { Link, useNavigate } from "react-router-dom"
-  
-  function Sidebar() {
-  
-    const navigate = useNavigate()
-  
-    const logout = () => {
-  
-      localStorage.removeItem("token")
-  
-      navigate("/")
-    }
-  
-    return (
-      <div className="w-64 min-h-screen bg-slate-900 border-r border-slate-800 p-6">
-  
-        <h1 className="text-2xl font-bold text-cyan-400 mb-10">
-          SupportDesk
-        </h1>
-  
+  FiHome,
+  FiClipboard,
+  FiSettings
+} from "react-icons/fi"
+
+import { Link } from "react-router-dom"
+
+import {
+  getUserName,
+  isAdmin
+} from "../utils/auth"
+
+
+function Sidebar() {
+
+  const userName = getUserName()
+
+
+  return (
+
+    <div className="w-72 bg-slate-900 border-r border-slate-800 p-6 flex flex-col justify-between">
+
+      <div>
+
+        <div className="mb-10">
+
+          <h1 className="text-3xl font-bold text-cyan-400">
+            SupportHub
+          </h1>
+
+          <p className="text-slate-400 mt-2 text-sm">
+            Enterprise Support Dashboard
+          </p>
+
+        </div>
+
+
         <nav className="space-y-4">
-  
+
           <Link
             to="/dashboard"
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"
+            className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl"
           >
-            <FiHome />
-            Dashboard
+
+            <FiHome className="text-xl" />
+
+            <span>
+              Dashboard
+            </span>
+
           </Link>
-  
+
+
           <Link
             to="/tickets"
-            className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 transition"
+            className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl"
           >
-            <FiClipboard />
-            Tickets
+
+            <FiClipboard className="text-xl" />
+
+            <span>
+              Tickets
+            </span>
+
           </Link>
-  
-          <button
-            onClick={logout}
-            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-500/20 text-red-400 transition"
-          >
-            <FiLogOut />
-            Logout
-          </button>
-  
+
+
+          {
+            isAdmin() && (
+
+              <Link
+                to="/admin"
+                className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 transition p-4 rounded-xl"
+              >
+
+                <FiSettings className="text-xl" />
+
+                <span>
+                  Admin Panel
+                </span>
+
+              </Link>
+            )
+          }
+
         </nav>
-  
+
       </div>
-    )
-  }
-  
-  export default Sidebar
+
+
+      <div className="bg-slate-800 p-4 rounded-xl">
+
+        <p className="text-sm text-slate-400">
+          Logged in as
+        </p>
+
+        <h2 className="text-lg font-semibold mt-1">
+          {userName}
+        </h2>
+
+      </div>
+
+    </div>
+  )
+}
+
+export default Sidebar

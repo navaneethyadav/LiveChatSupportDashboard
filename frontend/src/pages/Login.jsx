@@ -1,9 +1,13 @@
 import { useState } from "react"
+
 import { Link, useNavigate } from "react-router-dom"
+
 import { FiMail, FiLock } from "react-icons/fi"
+
 import toast, { Toaster } from "react-hot-toast"
 
 import API from "../services/api"
+
 
 function Login() {
 
@@ -17,6 +21,7 @@ function Login() {
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => {
+
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -31,17 +36,32 @@ function Login() {
 
       setLoading(true)
 
-      const response = await API.post("/login", formData)
+      const response = await API.post(
+        "/login",
+        formData
+      )
 
       localStorage.setItem(
         "token",
         response.data.access_token
       )
 
+      localStorage.setItem(
+        "role",
+        response.data.role
+      )
+
+      localStorage.setItem(
+        "full_name",
+        response.data.full_name
+      )
+
       toast.success("Login successful")
 
       setTimeout(() => {
+
         navigate("/dashboard")
+
       }, 1000)
 
     } catch (error) {
@@ -52,11 +72,13 @@ function Login() {
       )
 
     } finally {
+
       setLoading(false)
     }
   }
 
   return (
+
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
 
       <Toaster position="top-right" />
