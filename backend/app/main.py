@@ -84,3 +84,4 @@ def profile(
         "message": "Protected profile route",
         "logged_in_user": current_user
     }
+    
