@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react"
+
 import toast, { Toaster } from "react-hot-toast"
 
 import Sidebar from "../components/Sidebar"
+
 import Navbar from "../components/Navbar"
+
 import TicketCard from "../components/TicketCard"
+
 import CreateTicketModal from "../components/CreateTicketModal"
 
 import API from "../services/api"
+
 
 function Tickets() {
 
@@ -20,11 +25,14 @@ function Tickets() {
 
   const [priorityFilter, setPriorityFilter] = useState("")
 
+
   const fetchTickets = async () => {
 
     try {
 
-      const response = await API.get("/tickets")
+      const response = await API.get(
+        "/tickets"
+      )
 
       setTickets(response.data)
 
@@ -40,9 +48,13 @@ function Tickets() {
     }
   }
 
+
   useEffect(() => {
+
     fetchTickets()
+
   }, [])
+
 
   const filteredTickets = tickets.filter((ticket) => {
 
@@ -58,7 +70,9 @@ function Tickets() {
     return matchesSearch && matchesPriority
   })
 
+
   return (
+
     <div className="flex bg-slate-950 text-white min-h-screen">
 
       <Toaster position="top-right" />
@@ -94,19 +108,25 @@ function Tickets() {
 
           </div>
 
+
           <div className="flex flex-col md:flex-row gap-4 mb-8">
 
             <input
               type="text"
               placeholder="Search tickets..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
               className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 outline-none"
             />
 
+
             <select
               value={priorityFilter}
-              onChange={(e) => setPriorityFilter(e.target.value)}
+              onChange={(e) =>
+                setPriorityFilter(e.target.value)
+              }
               className="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 outline-none"
             >
 
@@ -130,11 +150,22 @@ function Tickets() {
 
           </div>
 
+
           {
             loading ? (
 
-              <div className="text-slate-400">
-                Loading tickets...
+              <div className="flex items-center justify-center py-20">
+
+                <div className="text-center">
+
+                  <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+
+                  <p className="text-slate-400">
+                    Loading tickets...
+                  </p>
+
+                </div>
+
               </div>
 
             ) : (
@@ -179,6 +210,7 @@ function Tickets() {
         </div>
 
       </div>
+
 
       {
         showModal && (
