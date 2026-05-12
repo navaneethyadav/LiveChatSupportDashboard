@@ -9,6 +9,8 @@ function LiveChat() {
 
   const [input, setInput] = useState("")
 
+  const [loading, setLoading] = useState(true)
+
   const socketRef = useRef(null)
 
   const fullName = localStorage.getItem(
@@ -79,6 +81,10 @@ function LiveChat() {
     } catch (error) {
 
       console.log(error)
+
+    } finally {
+
+      setLoading(false)
     }
   }
 
@@ -118,23 +124,61 @@ function LiveChat() {
       <div className="bg-slate-950 rounded-xl h-[350px] overflow-y-auto p-4 space-y-3">
 
         {
-          messages.map((msg, index) => (
+          loading ? (
 
-            <div
-              key={index}
-              className="bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-xl w-fit"
-            >
+            <div className="flex items-center justify-center h-full">
 
-              <span className="font-bold">
-                {msg.sender}
-              </span>
+              <div className="text-center">
 
-              {": "}
+                <div className="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
 
-              {msg.message}
+                <p className="text-slate-400">
+                  Loading chat...
+                </p>
+
+              </div>
 
             </div>
-          ))
+
+          ) : messages.length === 0 ? (
+
+            <div className="flex items-center justify-center h-full">
+
+              <div className="text-center">
+
+                <h3 className="text-xl font-semibold mb-2">
+                  No Messages Yet
+                </h3>
+
+                <p className="text-slate-400">
+                  Start the conversation now.
+                </p>
+
+              </div>
+
+            </div>
+
+          ) : (
+
+            messages.map((msg, index) => (
+
+              <div
+                key={index}
+                className="bg-cyan-500/20 text-cyan-300 px-4 py-2 rounded-xl w-fit"
+              >
+
+                <span className="font-bold">
+                  {msg.sender}
+                </span>
+
+                {": "}
+
+                {msg.message}
+
+              </div>
+            ))
+
+          )
         }
 
       </div>
