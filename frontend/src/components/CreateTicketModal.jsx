@@ -43,7 +43,9 @@ function CreateTicketModal({
 
 
   useEffect(() => {
+
     fetchCategories()
+
   }, [])
 
 
@@ -66,11 +68,22 @@ function CreateTicketModal({
 
       setLoading(true)
 
+      const userId = localStorage.getItem(
+        "user_id"
+      )
+
       await API.post("/tickets", {
+
         title,
+
         description,
+
         priority,
-        category_id: Number(categoryId)
+
+        category_id: Number(categoryId),
+
+        created_by: Number(userId)
+
       })
 
       toast.success(
@@ -95,6 +108,7 @@ function CreateTicketModal({
 
 
   return (
+
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 px-4">
 
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-xl p-8">
@@ -137,7 +151,9 @@ function CreateTicketModal({
               type="text"
               placeholder="Enter ticket title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) =>
+                setTitle(e.target.value)
+              }
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500"
             />
 
@@ -153,7 +169,9 @@ function CreateTicketModal({
               rows="4"
               placeholder="Describe the issue..."
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) =>
+                setDescription(e.target.value)
+              }
               className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500"
             />
 
@@ -169,7 +187,9 @@ function CreateTicketModal({
 
               <select
                 value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                onChange={(e) =>
+                  setPriority(e.target.value)
+                }
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500"
               >
 
@@ -197,7 +217,9 @@ function CreateTicketModal({
 
               <select
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                onChange={(e) =>
+                  setCategoryId(e.target.value)
+                }
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white outline-none focus:border-cyan-500"
               >
 

@@ -2,6 +2,8 @@ from fastapi import APIRouter
 from fastapi import WebSocket
 from fastapi import WebSocketDisconnect
 from fastapi import Depends
+from fastapi import HTTPException
+from fastapi import Query
 
 from sqlalchemy.orm import Session
 
@@ -11,27 +13,93 @@ from app.db.deps import get_db
 
 from app.models.chat_message import ChatMessage
 
+from app.models.users import User
+
+from app.core.security import (
+    verify_access_token
+)
+
+from datetime import datetime
+
 import json
 
 
 router = APIRouter()
-
 
 active_connections = []
 
 
 @router.get("/chat/messages")
 def get_chat_messages(
+
+    email: str = Query(None),
+
+    role: str = Query(None),
+
     db: Session = Depends(get_db)
+
 ):
 
-    messages = db.query(
-        ChatMessage
-    ).order_by(
-        ChatMessage.id.asc()
-    ).all()
+    if role == "admin":
+
+        messages = db.query(
+            ChatMessage
+        ).order_by(
+            ChatMessage.id.asc()
+        ).all()
+
+    else:
+
+        messages = db.query(
+            ChatMessage
+        ).filter(
+            ChatMessage.email == email
+        ).order_by(
+            ChatMessage.id.asc()
+        ).all()
 
     return messages
+
+
+@router.put("/chat/status/{message_id}")
+def update_chat_status(
+
+    message_id: int,
+
+    status: str,
+
+    db: Session = Depends(get_db)
+
+):
+
+    message = db.query(
+        ChatMessage
+    ).filter(
+        ChatMessage.id == message_id
+    ).first()
+
+    if not message:
+
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="Message not found"
+
+        )
+
+    message.status = status
+
+    db.commit()
+
+    db.refresh(message)
+
+    return {
+
+        "message":
+        "Status updated successfully"
+
+    }
 
 
 @router.websocket("/ws/chat")
@@ -39,55 +107,191 @@ async def websocket_chat(
     websocket: WebSocket
 ):
 
+    token = websocket.query_params.get(
+        "token"
+    )
+
+    if not token:
+
+        await websocket.close(
+            code=1008
+        )
+
+        return
+
+
+    try:
+
+        payload = verify_access_token(
+            token
+        )
+
+        email = payload.get("sub")
+
+        if not email:
+
+            await websocket.close(
+                code=1008
+            )
+
+            return
+
+    except:
+
+        await websocket.close(
+            code=1008
+        )
+
+        return
+
+
     await websocket.accept()
 
-    active_connections.append(websocket)
+    active_connections.append(
+        websocket
+    )
 
-    print("Client connected")
+    print(
+        f"Client connected: {email}"
+    )
 
     db: Session = SessionLocal()
 
     try:
 
+        user = db.query(User).filter(
+            User.email == email
+        ).first()
+
         while True:
 
             data = await websocket.receive_text()
 
-            parsed_data = json.loads(data)
-
-            sender = parsed_data["sender"]
-
-            message = parsed_data["message"]
-
-            print(sender, ":", message)
-
-            new_message = ChatMessage(
-                sender=sender,
-                receiver="Support",
-                message=message
+            parsed_data = json.loads(
+                data
             )
 
-            db.add(new_message)
+            status = parsed_data.get(
+                "status",
+                "Open"
+            )
 
-            db.commit()
+            message = parsed_data.get(
+                "message"
+            )
+
+            is_typing = parsed_data.get(
+                "is_typing",
+                False
+            )
+
+            timestamp = datetime.now().strftime(
+                "%I:%M %p"
+            )
+
+            saved_message = None
+
+            if not is_typing and message:
+
+                new_message = ChatMessage(
+
+                    sender=user.full_name,
+
+                    email=user.email,
+
+                    role=user.role,
+
+                    status=status,
+
+                    receiver="Support",
+
+                    message=message
+
+                )
+
+                db.add(new_message)
+
+                db.commit()
+
+                db.refresh(new_message)
+
+                saved_message = new_message
+
+                print(
+                    user.full_name,
+                    ":",
+                    message
+                )
+
 
             response_data = json.dumps({
-                "sender": sender,
-                "message": message
+
+                "id":
+                saved_message.id if saved_message else None,
+
+                "sender":
+                user.full_name,
+
+                "email":
+                user.email,
+
+                "role":
+                user.role,
+
+                "status":
+                status,
+
+                "message":
+                message,
+
+                "timestamp":
+                timestamp,
+
+                "is_typing":
+                is_typing
+
             })
+
+
+            disconnected_connections = []
 
             for connection in active_connections:
 
-                await connection.send_text(
-                    response_data
-                )
+                try:
+
+                    await connection.send_text(
+                        response_data
+                    )
+
+                except:
+
+                    disconnected_connections.append(
+                        connection
+                    )
+
+
+            for dead_connection in disconnected_connections:
+
+                if dead_connection in active_connections:
+
+                    active_connections.remove(
+                        dead_connection
+                    )
+
 
     except WebSocketDisconnect:
 
-        active_connections.remove(websocket)
+        if websocket in active_connections:
 
-        print("Client disconnected")
+            active_connections.remove(
+                websocket
+            )
+
+        print(
+            f"Client disconnected: {email}"
+        )
 
     finally:
 
         db.close()
+        

@@ -1,23 +1,56 @@
-# Python
+# =========================
+# BACKEND
+# =========================
+
 backend/venv/
-__pycache__/
+backend/__pycache__/
+backend/.pytest_cache/
+
+# =========================
+# PYTHON
+# =========================
+
 *.pyc
+*.pyo
+*.pyd
 
-# Environment Variables
-.env
+# =========================
+# FRONTEND
+# =========================
 
-# Node Modules
 frontend/node_modules/
-
-# Vite
 frontend/dist/
+frontend/.vite/
 
-# Logs
+# =========================
+# ENV FILES
+# =========================
+
+.env
+*.env
+
+# =========================
+# LOG FILES
+# =========================
+
 *.log
 
-# VS Code
-.vscode/
+# =========================
+# IDE FILES
+# =========================
 
-# OS Files
+.vscode/
+.idea/
+
+# =========================
+# OS FILES
+# =========================
+
 .DS_Store
 Thumbs.db
+
+# =========================
+# CACHE FILES
+# =========================
+
+.cache/

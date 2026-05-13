@@ -25,24 +25,40 @@ import LiveChat from "../components/LiveChat"
 function Dashboard() {
 
   const [stats, setStats] = useState({
+
     total_tickets: 0,
+
     open_tickets: 0,
+
     resolved_tickets: 0,
+
     high_priority: 0
+
   })
 
   const [loading, setLoading] = useState(true)
+
+  const role = localStorage.getItem(
+    "role"
+  )
+
+  const fullName = localStorage.getItem(
+    "full_name"
+  )
 
 
   const fetchStats = async () => {
 
     try {
 
-      const response = await API.get(
-        "/dashboard/stats"
-      )
+      if (role === "admin") {
 
-      setStats(response.data)
+        const response = await API.get(
+          "/dashboard/stats"
+        )
+
+        setStats(response.data)
+      }
 
     } catch (error) {
 
@@ -77,7 +93,7 @@ function Dashboard() {
           </h2>
 
           <p className="text-slate-400">
-            Fetching latest support analytics...
+            Fetching latest support data...
           </p>
 
         </div>
@@ -89,69 +105,129 @@ function Dashboard() {
 
   return (
 
-    <div className="flex bg-slate-950 min-h-screen text-white overflow-visible">
+    <div className="flex bg-slate-950 min-h-screen text-white">
 
       <Sidebar />
 
-      <div className="flex-1 p-8 overflow-visible">
 
-        <div className="flex items-center justify-between mb-8 overflow-visible">
+      <div className="flex-1 w-full overflow-hidden">
 
-          <div>
+        <div className="p-4 md:p-8 pt-24 md:pt-8">
 
-            <h1 className="text-4xl font-bold mb-2">
-              Dashboard
-            </h1>
+          {/* Header */}
 
-            <p className="text-slate-400">
-              Monitor support operations
-            </p>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+
+            <div>
+
+              {
+                role === "admin" ? (
+
+                  <>
+
+                    <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                      Dashboard
+                    </h1>
+
+                    <p className="text-slate-400">
+                      Monitor support operations
+                    </p>
+
+                  </>
+
+                ) : (
+
+                  <>
+
+                    <h1 className="text-3xl md:text-4xl font-bold mb-2">
+                      My Support Center
+                    </h1>
+
+                    <p className="text-slate-400">
+                      Welcome back, {fullName}
+                    </p>
+
+                  </>
+
+                )
+              }
+
+            </div>
+
+
+            <div className="self-start md:self-auto">
+
+              <NotificationBell />
+
+            </div>
 
           </div>
 
-          <NotificationBell />
+
+          {/* Admin Analytics */}
+
+          {
+            role === "admin" && (
+
+              <>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+
+                  <StatsCard
+                    title="Total Tickets"
+                    value={stats.total_tickets}
+                    icon={<FiLayers />}
+                    color="bg-cyan-500/20 text-cyan-400"
+                  />
+
+                  <StatsCard
+                    title="Open Tickets"
+                    value={stats.open_tickets}
+                    icon={<FiClipboard />}
+                    color="bg-yellow-500/20 text-yellow-400"
+                  />
+
+                  <StatsCard
+                    title="Resolved Tickets"
+                    value={stats.resolved_tickets}
+                    icon={<FiCheckCircle />}
+                    color="bg-green-500/20 text-green-400"
+                  />
+
+                  <StatsCard
+                    title="High Priority"
+                    value={stats.high_priority}
+                    icon={<FiAlertTriangle />}
+                    color="bg-red-500/20 text-red-400"
+                  />
+
+                </div>
+
+
+                <div className="mb-8">
+
+                  <TicketsChart stats={stats} />
+
+                </div>
+
+
+                <div className="mb-8">
+
+                  <LogsPanel />
+
+                </div>
+
+              </>
+
+            )
+          }
+
+
+          {/* Live Chat */}
+
+          <LiveChat />
 
         </div>
-
-
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-
-          <StatsCard
-            title="Total Tickets"
-            value={stats.total_tickets}
-            icon={<FiLayers />}
-            color="bg-cyan-500/20 text-cyan-400"
-          />
-
-          <StatsCard
-            title="Open Tickets"
-            value={stats.open_tickets}
-            icon={<FiClipboard />}
-            color="bg-yellow-500/20 text-yellow-400"
-          />
-
-          <StatsCard
-            title="Resolved Tickets"
-            value={stats.resolved_tickets}
-            icon={<FiCheckCircle />}
-            color="bg-green-500/20 text-green-400"
-          />
-
-          <StatsCard
-            title="High Priority"
-            value={stats.high_priority}
-            icon={<FiAlertTriangle />}
-            color="bg-red-500/20 text-red-400"
-          />
-
-        </div>
-
-
-        <TicketsChart stats={stats} />
-
-        <LogsPanel />
-
-        <LiveChat />
 
       </div>
 

@@ -20,6 +20,21 @@ class ChatMessage(Base):
         nullable=False
     )
 
+    email = Column(
+        String,
+        nullable=True
+    )
+
+    role = Column(
+        String,
+        nullable=True
+    )
+
+    status = Column(
+        String,
+        default="Open"
+    )
+
     receiver = Column(
         String,
         nullable=False

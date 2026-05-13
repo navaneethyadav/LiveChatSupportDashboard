@@ -1,19 +1,26 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
+from fastapi import Depends
+from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
 from app.models.logs import Log
 
-from app.db.deps import get_db
+from app.db.deps import (
+    get_db,
+    get_current_logged_in_user
+)
 
 from app.models.tickets import Ticket
+
+from app.models.users import User
 
 from app.schemas.ticket_schema import (
     TicketCreate,
     TicketAssign
 )
 
-# from app.services.email_service import send_email
+from app.core.security import require_admin
 
 
 router = APIRouter()
@@ -21,15 +28,29 @@ router = APIRouter()
 
 @router.post("/tickets")
 async def create_ticket(
+
     ticket: TicketCreate,
-    db: Session = Depends(get_db)
+
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(
+        get_current_logged_in_user
+    )
+
 ):
 
     new_ticket = Ticket(
+
         title=ticket.title,
+
         description=ticket.description,
+
         priority=ticket.priority,
-        category_id=ticket.category_id
+
+        category_id=ticket.category_id,
+
+        created_by=current_user.id
+
     )
 
     db.add(new_ticket)
@@ -40,7 +61,7 @@ async def create_ticket(
 
 
     log = Log(
-        action=f"Ticket #{new_ticket.id} created"
+        action=f"Ticket #{new_ticket.id} created by {current_user.full_name}"
     )
 
     db.add(log)
@@ -48,36 +69,64 @@ async def create_ticket(
     db.commit()
 
 
-    # EMAIL TEMPORARILY DISABLED
-    # await send_email(
-    #     subject="Ticket Created Successfully",
-    #     email="navaneethkaku@gmail.com",
-    #     body=f"Your ticket '{new_ticket.title}' has been created successfully."
-    # )
-
-
     return {
+
         "message": "Ticket created successfully",
+
         "ticket_id": new_ticket.id
     }
 
 
 @router.get("/tickets")
 def get_tickets(
-    db: Session = Depends(get_db)
+
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(
+        get_current_logged_in_user
+    )
+
 ):
 
-    tickets = db.query(Ticket).all()
+    if current_user.role == "admin":
+
+        tickets = db.query(
+            Ticket
+        ).order_by(
+            Ticket.id.desc()
+        ).all()
+
+    else:
+
+        tickets = db.query(
+            Ticket
+        ).filter(
+            Ticket.created_by == current_user.id
+        ).order_by(
+            Ticket.id.desc()
+        ).all()
 
     return tickets
 
 
 @router.put("/tickets/{ticket_id}")
 async def update_ticket_status(
+
     ticket_id: int,
+
     status: str,
-    db: Session = Depends(get_db)
+
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(
+        get_current_logged_in_user
+    )
+
 ):
+
+    require_admin(
+        current_user
+    )
 
     ticket = db.query(Ticket).filter(
         Ticket.id == ticket_id
@@ -85,9 +134,13 @@ async def update_ticket_status(
 
     if not ticket:
 
-        return {
-            "message": "Ticket not found"
-        }
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="Ticket not found"
+
+        )
 
     ticket.status = status
 
@@ -97,7 +150,7 @@ async def update_ticket_status(
 
 
     log = Log(
-        action=f"Ticket #{ticket.id} marked as {status}"
+        action=f"Ticket #{ticket.id} marked as {status} by {current_user.full_name}"
     )
 
     db.add(log)
@@ -106,7 +159,9 @@ async def update_ticket_status(
 
 
     return {
+
         "message": "Ticket updated successfully",
+
         "ticket": ticket
     }
 
@@ -118,9 +173,17 @@ async def assign_ticket(
 
     payload: TicketAssign,
 
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(
+        get_current_logged_in_user
+    )
 
 ):
+
+    require_admin(
+        current_user
+    )
 
     ticket = db.query(Ticket).filter(
         Ticket.id == ticket_id
@@ -128,9 +191,13 @@ async def assign_ticket(
 
     if not ticket:
 
-        return {
-            "message": "Ticket not found"
-        }
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="Ticket not found"
+
+        )
 
     ticket.assigned_to = payload.assigned_to
 
@@ -140,7 +207,7 @@ async def assign_ticket(
 
 
     log = Log(
-        action=f"Ticket #{ticket.id} assigned to {payload.assigned_to}"
+        action=f"Ticket #{ticket.id} assigned to {payload.assigned_to} by {current_user.full_name}"
     )
 
     db.add(log)
@@ -149,16 +216,29 @@ async def assign_ticket(
 
 
     return {
+
         "message": "Ticket assigned successfully",
+
         "ticket": ticket
     }
 
 
 @router.delete("/tickets/{ticket_id}")
 def delete_ticket(
+
     ticket_id: int,
-    db: Session = Depends(get_db)
+
+    db: Session = Depends(get_db),
+
+    current_user: User = Depends(
+        get_current_logged_in_user
+    )
+
 ):
+
+    require_admin(
+        current_user
+    )
 
     ticket = db.query(Ticket).filter(
         Ticket.id == ticket_id
@@ -166,9 +246,13 @@ def delete_ticket(
 
     if not ticket:
 
-        return {
-            "message": "Ticket not found"
-        }
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="Ticket not found"
+
+        )
 
     db.delete(ticket)
 
@@ -176,7 +260,7 @@ def delete_ticket(
 
 
     log = Log(
-        action=f"Ticket #{ticket.id} deleted"
+        action=f"Ticket #{ticket.id} deleted by {current_user.full_name}"
     )
 
     db.add(log)
@@ -185,6 +269,6 @@ def delete_ticket(
 
 
     return {
+
         "message": "Ticket deleted successfully"
     }
-    

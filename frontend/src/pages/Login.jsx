@@ -20,6 +20,7 @@ function Login() {
 
   const [loading, setLoading] = useState(false)
 
+
   const handleChange = (e) => {
 
     setFormData({
@@ -27,6 +28,7 @@ function Login() {
       [e.target.name]: e.target.value
     })
   }
+
 
   const handleSubmit = async (e) => {
 
@@ -56,7 +58,19 @@ function Login() {
         response.data.full_name
       )
 
-      toast.success("Login successful")
+      localStorage.setItem(
+        "email",
+        response.data.email
+      )
+
+      localStorage.setItem(
+        "user_id",
+        response.data.user_id
+      )
+
+      toast.success(
+        "Login successful"
+      )
 
       setTimeout(() => {
 
@@ -77,6 +91,7 @@ function Login() {
     }
   }
 
+
   return (
 
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
@@ -96,6 +111,7 @@ function Login() {
           </p>
 
         </div>
+
 
         <form
           onSubmit={handleSubmit}
@@ -126,6 +142,7 @@ function Login() {
 
           </div>
 
+
           <div>
 
             <label className="block mb-2 text-sm text-slate-300">
@@ -150,6 +167,7 @@ function Login() {
 
           </div>
 
+
           <button
             type="submit"
             disabled={loading}
@@ -165,6 +183,7 @@ function Login() {
           </button>
 
         </form>
+
 
         <p className="text-center text-slate-400 mt-6">
 

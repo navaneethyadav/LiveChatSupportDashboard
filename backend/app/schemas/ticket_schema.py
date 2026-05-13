@@ -11,7 +11,10 @@ class TicketCreate(BaseModel):
 
     category_id: int
 
+    created_by: int
+
 
 class TicketAssign(BaseModel):
 
     assigned_to: str
+    

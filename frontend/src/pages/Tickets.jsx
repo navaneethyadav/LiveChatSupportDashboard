@@ -67,7 +67,10 @@ function Tickets() {
       priorityFilter === "" ||
       ticket.priority === priorityFilter
 
-    return matchesSearch && matchesPriority
+    return (
+      matchesSearch &&
+      matchesPriority
+    )
   })
 
 
@@ -79,17 +82,17 @@ function Tickets() {
 
       <Sidebar />
 
-      <div className="flex-1">
+      <div className="flex-1 overflow-hidden">
 
         <Navbar />
 
-        <div className="p-8">
+        <div className="p-4 md:p-8">
 
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
 
             <div>
 
-              <h1 className="text-4xl font-bold mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">
                 Tickets
               </h1>
 
@@ -186,7 +189,7 @@ function Tickets() {
 
               ) : (
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
                   {
                     filteredTickets.map((ticket) => (

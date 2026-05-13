@@ -26,62 +26,125 @@ from app.api.chatbot import router as chatbot_router
 from app.core.auth import get_current_user
 
 
-app = FastAPI()
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://live-chat-support-dashboard.vercel.app"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+app = FastAPI(
+    title="SupportHub API",
+    version="1.0.0"
 )
 
 
-Base.metadata.create_all(bind=engine)
+# CORS
 
+app.add_middleware(
+
+    CORSMiddleware,
+
+    allow_origins=[
+
+        "http://localhost:5173",
+
+        "https://live-chat-support-dashboard.vercel.app"
+
+    ],
+
+    allow_credentials=True,
+
+    allow_methods=["*"],
+
+    allow_headers=["*"]
+
+)
+
+
+# Database Tables
+
+Base.metadata.create_all(
+    bind=engine
+)
+
+
+# Public Routes
 
 app.include_router(auth_router)
 
-app.include_router(ticket_router)
 
-app.include_router(dashboard_router)
+# Protected Routes
 
-app.include_router(category_router)
+app.include_router(
+    ticket_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(logs_router)
+app.include_router(
+    dashboard_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(users_router)
+app.include_router(
+    category_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(export_router)
+app.include_router(
+    logs_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(test_email_router)
+app.include_router(
+    users_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(chatbot_router)
+app.include_router(
+    export_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(chat_router)
+app.include_router(
+    test_email_router,
+    dependencies=[Depends(get_current_user)]
+)
 
-app.include_router(feedback_router)
+app.include_router(
+    chatbot_router,
+    dependencies=[Depends(get_current_user)]
+)
+
+app.include_router(
+    chat_router,
+    dependencies=[Depends(get_current_user)]
+)
+
+app.include_router(
+    feedback_router,
+    dependencies=[Depends(get_current_user)]
+)
 
 
 @app.get("/")
 def root():
 
     return {
-        "message": "Live Chat Support Dashboard Backend Running Successfully"
+
+        "message":
+        "Live Chat Support Dashboard Backend Running Successfully"
+
     }
 
 
 @app.get("/profile")
 def profile(
-    current_user: str = Depends(get_current_user)
+
+    current_user: dict = Depends(
+        get_current_user
+    )
+
 ):
 
     return {
+
         "message": "Protected profile route",
+
         "logged_in_user": current_user
+
     }
     
