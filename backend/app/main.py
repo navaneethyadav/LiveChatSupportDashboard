@@ -115,6 +115,18 @@ with engine.connect() as conn:
 
         print("status column:", e)
 
+    try:
+
+        conn.execute(
+            text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE"
+            )
+        )
+
+    except Exception as e:
+
+        print("is_verified column:", e)
+
     conn.commit()
 
 
