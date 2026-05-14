@@ -21,11 +21,19 @@ function LiveChat() {
 
   const [typingUser, setTypingUser] = useState("")
 
+  const [isConnected, setIsConnected] = useState(false)
+
   const socketRef = useRef(null)
+
+  const reconnectTimeoutRef = useRef(null)
 
   const typingTimeoutRef = useRef(null)
 
   const messagesEndRef = useRef(null)
+
+  const mountedRef = useRef(false)
+
+  const reconnectingRef = useRef(false)
 
   const fullName = localStorage.getItem(
     "full_name"
@@ -44,9 +52,51 @@ function LiveChat() {
   )
 
 
-  useEffect(() => {
+  const fetchMessages = async () => {
 
-    fetchMessages()
+    try {
+
+      const response = await API.get(
+        `/chat/messages?email=${email}&role=${role}`
+      )
+
+      setMessages(response.data)
+
+    } catch (error) {
+
+      console.log(error)
+
+    } finally {
+
+      setLoading(false)
+    }
+  }
+
+
+  const connectWebSocket = () => {
+
+    if (!mountedRef.current) {
+
+      return
+    }
+
+    if (!token) {
+
+      console.log("Token not found")
+
+      return
+    }
+
+    if (
+      socketRef.current &&
+      (
+        socketRef.current.readyState === WebSocket.OPEN ||
+        socketRef.current.readyState === WebSocket.CONNECTING
+      )
+    ) {
+
+      return
+    }
 
     const socket = new WebSocket(
       `ws://127.0.0.1:8000/ws/chat?token=${token}`
@@ -54,16 +104,20 @@ function LiveChat() {
 
     socketRef.current = socket
 
-
     socket.onopen = () => {
 
       console.log(
-        "WebSocket connected"
+        "WebSocket Connected"
       )
+
+      setIsConnected(true)
+
+      reconnectingRef.current = false
     }
 
-
-    socket.onmessage = (event) => {
+    socket.onmessage = (
+      event
+    ) => {
 
       const parsedMessage = JSON.parse(
         event.data
@@ -98,12 +152,12 @@ function LiveChat() {
 
       setMessages((prev) => {
 
-        const exists = prev.some(
+        const alreadyExists = prev.some(
           (msg) =>
             msg.id === parsedMessage.id
         )
 
-        if (exists) {
+        if (alreadyExists) {
 
           return prev
         }
@@ -123,27 +177,75 @@ function LiveChat() {
       })
     }
 
-
     socket.onclose = () => {
 
       console.log(
-        "WebSocket disconnected"
+        "WebSocket Disconnected"
       )
+
+      setIsConnected(false)
+
+      if (!mountedRef.current) {
+
+        return
+      }
+
+      if (reconnectingRef.current) {
+
+        return
+      }
+
+      reconnectingRef.current = true
+
+      reconnectTimeoutRef.current =
+        setTimeout(() => {
+
+          connectWebSocket()
+
+        }, 3000)
     }
 
-
-    socket.onerror = (error) => {
+    socket.onerror = (
+      error
+    ) => {
 
       console.log(
-        "WebSocket error:",
+        "WebSocket Error:",
         error
       )
     }
+  }
 
+
+  useEffect(() => {
+
+    if (mountedRef.current) {
+
+      return
+    }
+
+    mountedRef.current = true
+
+    fetchMessages()
+
+    connectWebSocket()
 
     return () => {
 
-      socket.close()
+      mountedRef.current = false
+
+      clearTimeout(
+        reconnectTimeoutRef.current
+      )
+
+      clearTimeout(
+        typingTimeoutRef.current
+      )
+
+      if (socketRef.current) {
+
+        socketRef.current.close()
+      }
     }
 
   }, [])
@@ -152,31 +254,88 @@ function LiveChat() {
   useEffect(() => {
 
     messagesEndRef.current?.scrollIntoView({
+
       behavior: "smooth"
+
     })
 
   }, [messages])
 
 
-  const fetchMessages = async () => {
+  const handleTyping = (
+    e
+  ) => {
 
-    try {
+    setInput(
+      e.target.value
+    )
 
-      const response = await API.get(
-        `/chat/messages?email=${email}&role=${role}`
+    if (
+      socketRef.current &&
+      socketRef.current.readyState === WebSocket.OPEN
+    ) {
+
+      socketRef.current.send(
+        JSON.stringify({
+
+          message: "",
+
+          status: "Open",
+
+          is_typing: true
+
+        })
+      )
+    }
+  }
+
+
+  const sendMessage = () => {
+
+    if (
+      !input.trim()
+    ) {
+
+      return
+    }
+
+    if (
+      !socketRef.current ||
+      socketRef.current.readyState !== WebSocket.OPEN
+    ) {
+
+      console.log(
+        "WebSocket not connected"
       )
 
-      setMessages(
-        response.data
-      )
+      return
+    }
 
-    } catch (error) {
+    socketRef.current.send(
+      JSON.stringify({
 
-      console.log(error)
+        message: input,
 
-    } finally {
+        status: "Open",
 
-      setLoading(false)
+        is_typing: false
+
+      })
+    )
+
+    setInput("")
+  }
+
+
+  const handleKeyDown = (
+    e
+  ) => {
+
+    if (
+      e.key === "Enter"
+    ) {
+
+      sendMessage()
     }
   }
 
@@ -193,12 +352,16 @@ function LiveChat() {
       )
 
       setMessages((prev) =>
+
         prev.map((msg) =>
+
           msg.id === messageId
+
             ? {
                 ...msg,
                 status: newStatus
               }
+
             : msg
         )
       )
@@ -206,84 +369,6 @@ function LiveChat() {
     } catch (error) {
 
       console.log(error)
-    }
-  }
-
-
-  const handleTyping = (
-    e
-  ) => {
-
-    setInput(
-      e.target.value
-    )
-
-    if (
-      !socketRef.current ||
-      socketRef.current.readyState !== WebSocket.OPEN
-    ) {
-
-      return
-    }
-
-    const typingData = {
-
-      status: "Open",
-
-      message: "",
-
-      is_typing: true
-
-    }
-
-    socketRef.current.send(
-      JSON.stringify(
-        typingData
-      )
-    )
-  }
-
-
-  const sendMessage = () => {
-
-    if (
-      !input.trim() ||
-      !socketRef.current ||
-      socketRef.current.readyState !== WebSocket.OPEN
-    ) {
-
-      return
-    }
-
-    const messageData = {
-
-      status: "Open",
-
-      message: input,
-
-      is_typing: false
-
-    }
-
-    socketRef.current.send(
-      JSON.stringify(
-        messageData
-      )
-    )
-
-    setInput("")
-  }
-
-
-  const handleKeyDown = (
-    e
-  ) => {
-
-    if (
-      e.key === "Enter"
-    ) {
-
-      sendMessage()
     }
   }
 
@@ -316,17 +401,17 @@ function LiveChat() {
 
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl mt-8">
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex items-center justify-between mb-6">
 
         <div>
 
-          <h2 className="text-2xl md:text-3xl font-bold text-white">
+          <h2 className="text-3xl font-bold text-white">
 
             Live Support Chat
 
           </h2>
 
-          <p className="text-slate-400 text-sm mt-1">
+          <p className="text-slate-400">
 
             Real-time communication system
 
@@ -334,83 +419,44 @@ function LiveChat() {
 
         </div>
 
+        <div className={`px-4 py-2 rounded-full text-sm font-semibold ${
+          isConnected
+            ? "bg-green-500/20 text-green-400"
+            : "bg-red-500/20 text-red-400"
+        }`}>
 
-        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-full w-fit">
-
-          <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-
-          <span className="text-green-400 text-sm font-medium">
-
-            Online
-
-          </span>
+          {
+            isConnected
+              ? "Online"
+              : "Reconnecting..."
+          }
 
         </div>
 
       </div>
 
-
-      <div className="bg-slate-950 rounded-3xl h-[500px] overflow-y-auto p-4 md:p-5 space-y-5 border border-slate-800">
+      <div className="bg-slate-950 rounded-3xl h-[500px] overflow-y-auto p-5 space-y-5 border border-slate-800">
 
         {
           loading ? (
 
-            <div className="flex items-center justify-center h-full">
+            <p className="text-slate-400">
 
-              <div className="text-center">
+              Loading chat...
 
-                <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-
-                <p className="text-slate-400">
-                  Loading chat...
-                </p>
-
-              </div>
-
-            </div>
-
-          ) : messages.length === 0 ? (
-
-            <div className="flex items-center justify-center h-full">
-
-              <div className="text-center">
-
-                <div className="w-20 h-20 rounded-full bg-slate-800 flex items-center justify-center text-3xl mx-auto mb-5">
-
-                  💬
-
-                </div>
-
-                <h3 className="text-2xl font-bold mb-2 text-white">
-
-                  No Messages Yet
-
-                </h3>
-
-                <p className="text-slate-400">
-
-                  Start the conversation now.
-
-                </p>
-
-              </div>
-
-            </div>
+            </p>
 
           ) : (
 
-            messages.map((msg, index) => {
+            messages.map((msg) => {
 
               const isOwnMessage =
                 msg.sender === fullName
 
-              const firstLetter =
-                msg.sender?.charAt(0)?.toUpperCase() || "U"
-
               return (
 
                 <div
-                  key={msg.id || index}
+                  key={msg.id}
                   className={`flex ${
                     isOwnMessage
                       ? "justify-end"
@@ -418,144 +464,90 @@ function LiveChat() {
                   }`}
                 >
 
-                  <div className="flex gap-3 max-w-[90%] md:max-w-[75%]">
+                  <div className={`max-w-[75%] rounded-3xl p-4 border ${
+                    isOwnMessage
+                      ? "bg-cyan-500/20 border-cyan-500/30"
+                      : "bg-slate-800 border-slate-700"
+                  }`}>
 
-                    {
-                      !isOwnMessage && (
+                    <div className="flex justify-between gap-4 mb-2">
 
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
-                          msg.role === "admin"
-                            ? "bg-purple-500 text-white"
-                            : "bg-slate-700 text-white"
-                        }`}>
+                      <div>
 
-                          {firstLetter}
+                        <h3 className="font-bold text-cyan-300">
 
-                        </div>
+                          {msg.sender}
 
-                      )
-                    }
+                        </h3>
 
+                        <p className="text-xs text-slate-400">
 
-                    <div
-                      className={`rounded-3xl p-4 border shadow-lg ${
-                        isOwnMessage
-                          ? "bg-cyan-500/20 border-cyan-500/30"
-                          : msg.role === "admin"
-                          ? "bg-purple-500/20 border-purple-500/30"
-                          : "bg-slate-800 border-slate-700"
-                      }`}
-                    >
+                          {msg.email}
 
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-3">
-
-                        <div>
-
-                          <h3
-                            className={`font-bold text-base ${
-                              msg.role === "admin"
-                                ? "text-purple-300"
-                                : "text-cyan-300"
-                            }`}
-                          >
-
-                            {msg.sender}
-
-                          </h3>
-
-                          {
-                            msg.email && (
-
-                              <p className="text-xs text-slate-400 mt-1 break-all">
-
-                                {msg.email}
-
-                              </p>
-
-                            )
-                          }
-
-                        </div>
-
-
-                        <div className="flex flex-col items-start sm:items-end gap-2">
-
-                          {
-                            role === "admin" ? (
-
-                              <select
-                                value={msg.status || "Open"}
-                                onChange={(e) =>
-                                  updateStatus(
-                                    msg.id,
-                                    e.target.value
-                                  )
-                                }
-                                className="text-xs px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white outline-none"
-                              >
-
-                                <option value="Open">
-                                  Open
-                                </option>
-
-                                <option value="In Progress">
-                                  In Progress
-                                </option>
-
-                                <option value="Resolved">
-                                  Resolved
-                                </option>
-
-                                <option value="Closed">
-                                  Closed
-                                </option>
-
-                              </select>
-
-                            ) : (
-
-                              <span
-                                className={`text-xs px-3 py-1 rounded-full font-semibold ${getStatusColor(
-                                  msg.status
-                                )}`}
-                              >
-
-                                {msg.status || "Open"}
-
-                              </span>
-
-                            )
-                          }
-
-                          <p className="text-xs text-slate-500">
-
-                            {
-                              msg.timestamp
-                                ? msg.timestamp
-                                : ""
-                            }
-
-                          </p>
-
-                        </div>
+                        </p>
 
                       </div>
 
+                      {
+                        role === "admin"
 
-                      <p className="text-slate-100 leading-relaxed break-words">
+                        ? (
 
-                        {msg.message}
+                          <select
+                            value={msg.status || "Open"}
+                            onChange={(e) =>
+                              updateStatus(
+                                msg.id,
+                                e.target.value
+                              )
+                            }
+                            className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                          >
 
-                      </p>
+                            <option value="Open">
+                              Open
+                            </option>
+
+                            <option value="In Progress">
+                              In Progress
+                            </option>
+
+                            <option value="Resolved">
+                              Resolved
+                            </option>
+
+                            <option value="Closed">
+                              Closed
+                            </option>
+
+                          </select>
+
+                        ) : (
+
+                          <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(
+                            msg.status
+                          )}`}>
+
+                            {msg.status}
+
+                          </span>
+
+                        )
+                      }
 
                     </div>
+
+                    <p className="text-white break-words">
+
+                      {msg.message}
+
+                    </p>
 
                   </div>
 
                 </div>
               )
             })
-
           )
         }
 
@@ -563,31 +555,19 @@ function LiveChat() {
 
       </div>
 
-
       {
         typingUser && (
 
-          <div className="mt-4 text-sm text-cyan-400 flex items-center gap-2 animate-pulse">
-
-            <div className="flex gap-1">
-
-              <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
-
-              <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
-
-              <span className="w-2 h-2 bg-cyan-400 rounded-full"></span>
-
-            </div>
+          <p className="text-cyan-400 text-sm mt-3">
 
             {typingUser} is typing...
 
-          </div>
+          </p>
 
         )
       }
 
-
-      <div className="flex flex-col sm:flex-row gap-3 mt-5">
+      <div className="flex gap-3 mt-5">
 
         <input
           type="text"
@@ -595,12 +575,12 @@ function LiveChat() {
           value={input}
           onChange={handleTyping}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 outline-none text-white focus:border-cyan-500"
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl px-5 py-4 outline-none text-white"
         />
 
         <button
           onClick={sendMessage}
-          className="bg-cyan-500 hover:bg-cyan-600 transition-all duration-300 px-6 py-4 rounded-2xl font-semibold flex items-center justify-center gap-2 text-black"
+          className="bg-cyan-500 hover:bg-cyan-600 px-6 py-4 rounded-2xl font-semibold flex items-center gap-2 text-black"
         >
 
           <FiSend />

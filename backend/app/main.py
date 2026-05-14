@@ -1,6 +1,11 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
+from fastapi import Depends
 
 from fastapi.middleware.cors import CORSMiddleware
+
+from fastapi.staticfiles import StaticFiles
+
+import os
 
 from app.db.database import engine, Base
 
@@ -32,7 +37,9 @@ app = FastAPI(
 )
 
 
+# =========================
 # CORS
+# =========================
 
 app.add_middleware(
 
@@ -55,19 +62,47 @@ app.add_middleware(
 )
 
 
-# Database Tables
+# =========================
+# DATABASE TABLES
+# =========================
 
 Base.metadata.create_all(
     bind=engine
 )
 
 
-# Public Routes
+# =========================
+# CREATE uploads FOLDER
+# =========================
+
+if not os.path.exists("uploads"):
+
+    os.makedirs("uploads")
+
+
+# =========================
+# STATIC FILES
+# =========================
+
+app.mount(
+    "/uploads",
+    StaticFiles(directory="uploads"),
+    name="uploads"
+)
+
+
+# =========================
+# PUBLIC ROUTES
+# =========================
 
 app.include_router(auth_router)
 
+app.include_router(chatbot_router)
 
-# Protected Routes
+
+# =========================
+# PROTECTED ROUTES
+# =========================
 
 app.include_router(
     ticket_router,
@@ -105,18 +140,17 @@ app.include_router(
 )
 
 app.include_router(
-    chatbot_router,
-    dependencies=[Depends(get_current_user)]
-)
-
-app.include_router(
-    chat_router,
-    dependencies=[Depends(get_current_user)]
-)
-
-app.include_router(
     feedback_router,
     dependencies=[Depends(get_current_user)]
+)
+
+
+# =========================
+# WEBSOCKET ROUTES
+# =========================
+
+app.include_router(
+    chat_router
 )
 
 

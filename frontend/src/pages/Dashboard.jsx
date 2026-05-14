@@ -21,6 +21,8 @@ import TicketsChart from "../components/TicketsChart"
 
 import LiveChat from "../components/LiveChat"
 
+import AIChatbot from "../components/AIChatbot"
+
 
 function Dashboard() {
 
@@ -226,6 +228,11 @@ function Dashboard() {
           {/* Live Chat */}
 
           <LiveChat />
+
+
+          {/* AI Chatbot */}
+
+          <AIChatbot />
 
         </div>
 

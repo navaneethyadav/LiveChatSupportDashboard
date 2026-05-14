@@ -1,21 +1,23 @@
 import { useState } from "react"
 
-import { Link, useNavigate } from "react-router-dom"
-
-import { FiMail, FiLock } from "react-icons/fi"
+import { useNavigate, useParams } from "react-router-dom"
 
 import toast, { Toaster } from "react-hot-toast"
+
+import { FiLock } from "react-icons/fi"
 
 import API from "../services/api"
 
 
-function Login() {
+function ResetPassword() {
 
   const navigate = useNavigate()
 
+  const { token } = useParams()
+
   const [formData, setFormData] = useState({
-    email: "",
-    password: ""
+    new_password: "",
+    confirm_password: ""
   })
 
   const [loading, setLoading] = useState(false)
@@ -34,55 +36,43 @@ function Login() {
 
     e.preventDefault()
 
+    if (
+      formData.new_password !==
+      formData.confirm_password
+    ) {
+
+      toast.error(
+        "Passwords do not match"
+      )
+
+      return
+    }
+
     try {
 
       setLoading(true)
 
       const response = await API.post(
-        "/login",
-        formData
-      )
-
-      localStorage.setItem(
-        "token",
-        response.data.access_token
-      )
-
-      localStorage.setItem(
-        "role",
-        response.data.role
-      )
-
-      localStorage.setItem(
-        "full_name",
-        response.data.full_name
-      )
-
-      localStorage.setItem(
-        "email",
-        response.data.email
-      )
-
-      localStorage.setItem(
-        "user_id",
-        response.data.user_id
+        "/reset-password",
+        {
+          token,
+          new_password: formData.new_password
+        }
       )
 
       toast.success(
-        "Login successful"
+        response.data.message
       )
 
       setTimeout(() => {
-
-        navigate("/dashboard")
-
-      }, 1000)
+        navigate("/")
+      }, 2000)
 
     } catch (error) {
 
       toast.error(
         error.response?.data?.detail ||
-        "Login failed"
+        "Password reset failed"
       )
 
     } finally {
@@ -103,11 +93,11 @@ function Login() {
         <div className="mb-8 text-center">
 
           <h1 className="text-4xl font-bold text-cyan-400 mb-2">
-            Welcome Back
+            Reset Password
           </h1>
 
           <p className="text-slate-400">
-            Login to continue
+            Create a new secure password
           </p>
 
         </div>
@@ -121,18 +111,18 @@ function Login() {
           <div>
 
             <label className="block mb-2 text-sm text-slate-300">
-              Email
+              New Password
             </label>
 
             <div className="flex items-center bg-slate-800 rounded-xl px-4">
 
-              <FiMail className="text-slate-400" />
+              <FiLock className="text-slate-400" />
 
               <input
-                type="email"
-                name="email"
-                placeholder="Enter your email"
-                value={formData.email}
+                type="password"
+                name="new_password"
+                placeholder="Enter new password"
+                value={formData.new_password}
                 onChange={handleChange}
                 required
                 className="w-full bg-transparent outline-none px-3 py-4 text-white"
@@ -146,7 +136,7 @@ function Login() {
           <div>
 
             <label className="block mb-2 text-sm text-slate-300">
-              Password
+              Confirm Password
             </label>
 
             <div className="flex items-center bg-slate-800 rounded-xl px-4">
@@ -155,9 +145,9 @@ function Login() {
 
               <input
                 type="password"
-                name="password"
-                placeholder="Enter your password"
-                value={formData.password}
+                name="confirm_password"
+                placeholder="Confirm password"
+                value={formData.confirm_password}
                 onChange={handleChange}
                 required
                 className="w-full bg-transparent outline-none px-3 py-4 text-white"
@@ -176,39 +166,13 @@ function Login() {
 
             {
               loading
-                ? "Logging in..."
-                : "Login"
+                ? "Resetting Password..."
+                : "Reset Password"
             }
 
           </button>
 
         </form>
-
-
-        <div className="mt-4 text-right">
-
-          <Link
-            to="/forgot-password"
-            className="text-cyan-400 hover:underline text-sm"
-          >
-            Forgot Password?
-          </Link>
-
-        </div>
-
-
-        <p className="text-center text-slate-400 mt-6">
-
-          Don't have an account?
-
-          <Link
-            to="/signup"
-            className="text-cyan-400 ml-2 hover:underline"
-          >
-            Signup
-          </Link>
-
-        </p>
 
       </div>
 
@@ -216,4 +180,4 @@ function Login() {
   )
 }
 
-export default Login
+export default ResetPassword

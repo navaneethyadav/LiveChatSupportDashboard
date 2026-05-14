@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, Boolean
 
 from app.db.database import Base
 
@@ -33,3 +33,9 @@ class User(Base):
         String,
         nullable=False
     )
+
+    is_verified = Column(
+        Boolean,
+        default=False
+    )
+    

@@ -20,6 +20,8 @@ function CreateTicketModal({
 
   const [categories, setCategories] = useState([])
 
+  const [attachment, setAttachment] = useState(null)
+
   const [loading, setLoading] = useState(false)
 
 
@@ -68,23 +70,46 @@ function CreateTicketModal({
 
       setLoading(true)
 
-      const userId = localStorage.getItem(
-        "user_id"
+      const formData = new FormData()
+
+      formData.append(
+        "title",
+        title
       )
 
-      await API.post("/tickets", {
+      formData.append(
+        "description",
+        description
+      )
 
-        title,
+      formData.append(
+        "priority",
+        priority
+      )
 
-        description,
+      formData.append(
+        "category_id",
+        categoryId
+      )
 
-        priority,
+      if (attachment) {
 
-        category_id: Number(categoryId),
+        formData.append(
+          "attachment",
+          attachment
+        )
+      }
 
-        created_by: Number(userId)
-
-      })
+      await API.post(
+        "/tickets",
+        formData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data"
+          }
+        }
+      )
 
       toast.success(
         "Ticket created successfully"
@@ -95,6 +120,8 @@ function CreateTicketModal({
       closeModal()
 
     } catch (error) {
+
+      console.log(error)
 
       toast.error(
         "Failed to create ticket"
@@ -245,6 +272,40 @@ function CreateTicketModal({
             </div>
 
           </div>
+
+
+          <div>
+
+            <label className="block mb-2 text-sm text-slate-300">
+              Attachment
+            </label>
+
+            <input
+              type="file"
+              onChange={(e) =>
+                setAttachment(
+                  e.target.files[0]
+                )
+              }
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white"
+            />
+
+            {
+              attachment && (
+
+                <p className="text-sm text-cyan-400 mt-2">
+
+                  Selected:
+                  {" "}
+                  {attachment.name}
+
+                </p>
+
+              )
+            }
+
+          </div>
+
 
           <button
             type="submit"

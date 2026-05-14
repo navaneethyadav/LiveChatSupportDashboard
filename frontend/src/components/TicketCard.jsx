@@ -16,7 +16,9 @@ import {
   FiUser,
   FiTrash2,
   FiCheckCircle,
-  FiClock
+  FiClock,
+  FiPaperclip,
+  FiDownload
 } from "react-icons/fi"
 
 
@@ -225,6 +227,42 @@ function TicketCard({
         </div>
 
       </div>
+
+
+      {/* Attachment */}
+
+      {
+        ticket.attachment && (
+
+          <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-5">
+
+            <div className="flex items-center gap-3 mb-3">
+
+              <FiPaperclip className="text-cyan-400" />
+
+              <p className="text-white font-medium">
+                Attachment
+              </p>
+
+            </div>
+
+            <a
+              href={`http://127.0.0.1:8000/${ticket.attachment}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 bg-cyan-500 hover:bg-cyan-600 transition-all duration-300 px-4 py-3 rounded-xl text-black font-semibold"
+            >
+
+              <FiDownload />
+
+              Open Attachment
+
+            </a>
+
+          </div>
+
+        )
+      }
 
 
       {/* Assigned Engineer */}

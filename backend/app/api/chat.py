@@ -8,16 +8,12 @@ from fastapi import Query
 from sqlalchemy.orm import Session
 
 from app.db.database import SessionLocal
-
 from app.db.deps import get_db
 
 from app.models.chat_message import ChatMessage
-
 from app.models.users import User
 
-from app.core.security import (
-    verify_access_token
-)
+from app.core.security import verify_access_token
 
 from datetime import datetime
 
@@ -26,7 +22,64 @@ import json
 
 router = APIRouter()
 
-active_connections = []
+
+class ConnectionManager:
+
+    def __init__(self):
+
+        self.active_connections = set()
+
+    async def connect(
+        self,
+        websocket: WebSocket
+    ):
+
+        await websocket.accept()
+
+        self.active_connections.add(
+            websocket
+        )
+
+    def disconnect(
+        self,
+        websocket: WebSocket
+    ):
+
+        self.active_connections.discard(
+            websocket
+        )
+
+    async def broadcast(
+        self,
+        message_data: dict
+    ):
+
+        disconnected_connections = set()
+
+        for connection in self.active_connections.copy():
+
+            try:
+
+                await connection.send_text(
+                    json.dumps(
+                        message_data
+                    )
+                )
+
+            except Exception:
+
+                disconnected_connections.add(
+                    connection
+                )
+
+        for dead_connection in disconnected_connections:
+
+            self.disconnect(
+                dead_connection
+            )
+
+
+manager = ConnectionManager()
 
 
 @router.get("/chat/messages")
@@ -119,14 +172,15 @@ async def websocket_chat(
 
         return
 
-
     try:
 
         payload = verify_access_token(
             token
         )
 
-        email = payload.get("sub")
+        email = payload.get(
+            "sub"
+        )
 
         if not email:
 
@@ -136,7 +190,12 @@ async def websocket_chat(
 
             return
 
-    except:
+    except Exception as e:
+
+        print(
+            "WebSocket Auth Error:",
+            e
+        )
 
         await websocket.close(
             code=1008
@@ -144,10 +203,7 @@ async def websocket_chat(
 
         return
 
-
-    await websocket.accept()
-
-    active_connections.append(
+    await manager.connect(
         websocket
     )
 
@@ -163,6 +219,16 @@ async def websocket_chat(
             User.email == email
         ).first()
 
+        if not user:
+
+            manager.disconnect(
+                websocket
+            )
+
+            await websocket.close()
+
+            return
+
         while True:
 
             data = await websocket.receive_text()
@@ -177,7 +243,8 @@ async def websocket_chat(
             )
 
             message = parsed_data.get(
-                "message"
+                "message",
+                ""
             )
 
             is_typing = parsed_data.get(
@@ -191,7 +258,10 @@ async def websocket_chat(
 
             saved_message = None
 
-            if not is_typing and message:
+            if (
+                not is_typing and
+                message.strip()
+            ):
 
                 new_message = ChatMessage(
 
@@ -205,26 +275,27 @@ async def websocket_chat(
 
                     receiver="Support",
 
-                    message=message
+                    message=message.strip()
 
                 )
 
-                db.add(new_message)
+                db.add(
+                    new_message
+                )
 
                 db.commit()
 
-                db.refresh(new_message)
+                db.refresh(
+                    new_message
+                )
 
                 saved_message = new_message
 
                 print(
-                    user.full_name,
-                    ":",
-                    message
+                    f"{user.full_name}: {message}"
                 )
 
-
-            response_data = json.dumps({
+            response_data = {
 
                 "id":
                 saved_message.id if saved_message else None,
@@ -250,48 +321,38 @@ async def websocket_chat(
                 "is_typing":
                 is_typing
 
-            })
+            }
 
-
-            disconnected_connections = []
-
-            for connection in active_connections:
-
-                try:
-
-                    await connection.send_text(
-                        response_data
-                    )
-
-                except:
-
-                    disconnected_connections.append(
-                        connection
-                    )
-
-
-            for dead_connection in disconnected_connections:
-
-                if dead_connection in active_connections:
-
-                    active_connections.remove(
-                        dead_connection
-                    )
-
+            await manager.broadcast(
+                response_data
+            )
 
     except WebSocketDisconnect:
-
-        if websocket in active_connections:
-
-            active_connections.remove(
-                websocket
-            )
 
         print(
             f"Client disconnected: {email}"
         )
 
+        manager.disconnect(
+            websocket
+        )
+
+    except Exception as e:
+
+        print(
+            "WebSocket Runtime Error:",
+            e
+        )
+
+        manager.disconnect(
+            websocket
+        )
+
     finally:
+
+        manager.disconnect(
+            websocket
+        )
 
         db.close()
         

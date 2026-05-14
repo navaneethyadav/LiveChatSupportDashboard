@@ -1,10 +1,14 @@
 from fastapi import APIRouter
 from fastapi import Depends
 from fastapi import HTTPException
+from fastapi import UploadFile
+from fastapi import File
+from fastapi import Form
 
 from sqlalchemy.orm import Session
 
 from app.models.logs import Log
+from app.models.feedback import Feedback
 
 from app.db.deps import (
     get_db,
@@ -12,24 +16,42 @@ from app.db.deps import (
 )
 
 from app.models.tickets import Ticket
-
 from app.models.users import User
 
 from app.schemas.ticket_schema import (
-    TicketCreate,
     TicketAssign
 )
 
 from app.core.security import require_admin
 
+import os
+import shutil
+import uuid
+
 
 router = APIRouter()
+
+
+UPLOAD_DIR = "uploads"
+
+
+if not os.path.exists(UPLOAD_DIR):
+
+    os.makedirs(UPLOAD_DIR)
 
 
 @router.post("/tickets")
 async def create_ticket(
 
-    ticket: TicketCreate,
+    title: str = Form(...),
+
+    description: str = Form(...),
+
+    priority: str = Form(...),
+
+    category_id: int = Form(...),
+
+    attachment: UploadFile = File(None),
 
     db: Session = Depends(get_db),
 
@@ -39,17 +61,41 @@ async def create_ticket(
 
 ):
 
+    file_path = None
+
+    if attachment:
+
+        unique_filename = (
+            f"{uuid.uuid4()}_{attachment.filename}"
+        )
+
+        file_location = os.path.join(
+            UPLOAD_DIR,
+            unique_filename
+        )
+
+        with open(file_location, "wb") as buffer:
+
+            shutil.copyfileobj(
+                attachment.file,
+                buffer
+            )
+
+        file_path = file_location
+
     new_ticket = Ticket(
 
-        title=ticket.title,
+        title=title,
 
-        description=ticket.description,
+        description=description,
 
-        priority=ticket.priority,
+        priority=priority,
 
-        category_id=ticket.category_id,
+        category_id=category_id,
 
-        created_by=current_user.id
+        created_by=current_user.id,
+
+        attachment=file_path
 
     )
 
@@ -59,7 +105,6 @@ async def create_ticket(
 
     db.refresh(new_ticket)
 
-
     log = Log(
         action=f"Ticket #{new_ticket.id} created by {current_user.full_name}"
     )
@@ -68,12 +113,14 @@ async def create_ticket(
 
     db.commit()
 
-
     return {
 
         "message": "Ticket created successfully",
 
-        "ticket_id": new_ticket.id
+        "ticket_id": new_ticket.id,
+
+        "attachment": file_path
+
     }
 
 
@@ -148,7 +195,6 @@ async def update_ticket_status(
 
     db.refresh(ticket)
 
-
     log = Log(
         action=f"Ticket #{ticket.id} marked as {status} by {current_user.full_name}"
     )
@@ -157,12 +203,12 @@ async def update_ticket_status(
 
     db.commit()
 
-
     return {
 
         "message": "Ticket updated successfully",
 
         "ticket": ticket
+
     }
 
 
@@ -205,7 +251,6 @@ async def assign_ticket(
 
     db.refresh(ticket)
 
-
     log = Log(
         action=f"Ticket #{ticket.id} assigned to {payload.assigned_to} by {current_user.full_name}"
     )
@@ -214,12 +259,12 @@ async def assign_ticket(
 
     db.commit()
 
-
     return {
 
         "message": "Ticket assigned successfully",
 
         "ticket": ticket
+
     }
 
 
@@ -254,21 +299,56 @@ def delete_ticket(
 
         )
 
-    db.delete(ticket)
+    try:
 
-    db.commit()
+        feedbacks = db.query(
+            Feedback
+        ).filter(
+            Feedback.ticket_id == ticket_id
+        ).all()
 
+        for feedback in feedbacks:
 
-    log = Log(
-        action=f"Ticket #{ticket.id} deleted by {current_user.full_name}"
-    )
+            db.delete(feedback)
 
-    db.add(log)
+        if ticket.attachment:
 
-    db.commit()
+            if os.path.exists(ticket.attachment):
 
+                os.remove(ticket.attachment)
 
-    return {
+        db.delete(ticket)
 
-        "message": "Ticket deleted successfully"
-    }
+        db.commit()
+
+        log = Log(
+            action=f"Ticket #{ticket.id} deleted by {current_user.full_name}"
+        )
+
+        db.add(log)
+
+        db.commit()
+
+        return {
+
+            "message": "Ticket deleted successfully"
+
+        }
+
+    except Exception as e:
+
+        db.rollback()
+
+        print(
+            "Delete Ticket Error:",
+            e
+        )
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail="Failed to delete ticket"
+
+        )
+        

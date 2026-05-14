@@ -1,4 +1,7 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column
+from sqlalchemy import Integer
+from sqlalchemy import String
+from sqlalchemy import ForeignKey
 
 from sqlalchemy.orm import relationship
 
@@ -35,6 +38,13 @@ class Ticket(Base):
         default="Medium"
     )
 
+    # NEW FILE ATTACHMENT COLUMN
+
+    attachment = Column(
+        String,
+        nullable=True
+    )
+
     category_id = Column(
         Integer,
         ForeignKey("categories.id")
@@ -51,3 +61,4 @@ class Ticket(Base):
     )
 
     user = relationship("User")
+    

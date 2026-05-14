@@ -11,14 +11,22 @@ function AdminPanel() {
 
   const [users, setUsers] = useState([])
 
+  const token = localStorage.getItem(
+    "token"
+  )
+
 
   const fetchUsers = async () => {
 
     try {
 
-      const response = await API.get("/users")
+      const response = await API.get(
+        "/users"
+      )
 
-      setUsers(response.data)
+      setUsers(
+        response.data
+      )
 
     } catch (error) {
 
@@ -53,6 +61,61 @@ function AdminPanel() {
   }
 
 
+  const exportUsers = async () => {
+
+    try {
+
+      const response = await API.get(
+        "/export/users",
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+
+      const blob = new Blob(
+        [response.data],
+        {
+          type: "text/csv"
+        }
+      )
+
+      const url =
+        window.URL.createObjectURL(blob)
+
+      const link =
+        document.createElement("a")
+
+      link.href = url
+
+      link.download =
+        "users_report.csv"
+
+      document.body.appendChild(link)
+
+      link.click()
+
+      document.body.removeChild(link)
+
+      window.URL.revokeObjectURL(url)
+
+      toast.success(
+        "Users CSV exported successfully"
+      )
+
+    } catch (error) {
+
+      console.log(error)
+
+      toast.error(
+        "Failed to export users"
+      )
+    }
+  }
+
+
   useEffect(() => {
 
     fetchUsers()
@@ -71,11 +134,15 @@ function AdminPanel() {
         <div className="mb-8">
 
           <h1 className="text-4xl font-bold mb-2">
+
             Admin Management Panel
+
           </h1>
 
           <p className="text-slate-400">
+
             Manage users, tickets, chats, feedback and analytics
+
           </p>
 
         </div>
@@ -86,17 +153,20 @@ function AdminPanel() {
           <div className="flex items-center justify-between mb-6">
 
             <h2 className="text-2xl font-bold">
+
               Users Management
+
             </h2>
 
-            <a
-              href="http://127.0.0.1:8000/export/users"
-              target="_blank"
-              rel="noreferrer"
+
+            <button
+              onClick={exportUsers}
               className="bg-cyan-500 hover:bg-cyan-600 px-4 py-2 rounded-xl font-semibold"
             >
+
               Export Users CSV
-            </a>
+
+            </button>
 
           </div>
 
@@ -110,23 +180,33 @@ function AdminPanel() {
                 <tr className="border-b border-slate-700 text-left">
 
                   <th className="py-4">
+
                     ID
+
                   </th>
 
                   <th className="py-4">
+
                     Full Name
+
                   </th>
 
                   <th className="py-4">
+
                     Email
+
                   </th>
 
                   <th className="py-4">
+
                     Role
+
                   </th>
 
                   <th className="py-4">
+
                     Actions
+
                   </th>
 
                 </tr>
@@ -145,15 +225,21 @@ function AdminPanel() {
                     >
 
                       <td className="py-4">
+
                         {user.id}
+
                       </td>
 
                       <td className="py-4">
+
                         {user.full_name}
+
                       </td>
 
                       <td className="py-4">
+
                         {user.email}
+
                       </td>
 
                       <td className="py-4">
@@ -180,7 +266,9 @@ function AdminPanel() {
                             }
                             className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm"
                           >
+
                             Make Admin
+
                           </button>
 
 
@@ -193,7 +281,9 @@ function AdminPanel() {
                             }
                             className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded-lg text-sm"
                           >
+
                             Make Support
+
                           </button>
 
 
@@ -206,7 +296,9 @@ function AdminPanel() {
                             }
                             className="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg text-sm"
                           >
+
                             Make User
+
                           </button>
 
                         </div>
