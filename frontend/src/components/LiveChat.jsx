@@ -98,8 +98,13 @@ function LiveChat() {
       return
     }
 
+    const WS_BASE_URL =
+      window.location.hostname === "localhost"
+        ? "ws://127.0.0.1:8000"
+        : "wss://livechatsupportdashboard.onrender.com"
+
     const socket = new WebSocket(
-      `wss://livechatsupportdashboard.onrender.com/ws/chat?token=${token}`
+      `${WS_BASE_URL}/ws/chat?token=${token}`
     )
 
     socketRef.current = socket
