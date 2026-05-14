@@ -38,6 +38,10 @@ from app.services.email_service import send_email
 router = APIRouter()
 
 
+# =========================================
+# SIGNUP
+# =========================================
+
 @router.post("/signup")
 async def signup(
     user: UserCreate,
@@ -149,6 +153,10 @@ async def signup(
     }
 
 
+# =========================================
+# VERIFY EMAIL
+# =========================================
+
 @router.post("/verify-email")
 def verify_email(
     payload: EmailVerificationRequest,
@@ -184,6 +192,10 @@ def verify_email(
         "message": "Email verified successfully"
     }
 
+
+# =========================================
+# RESEND VERIFICATION
+# =========================================
 
 @router.post("/resend-verification")
 async def resend_verification(
@@ -270,6 +282,10 @@ async def resend_verification(
     }
 
 
+# =========================================
+# LOGIN
+# =========================================
+
 @router.post("/login")
 def login(
     user: UserLogin,
@@ -297,12 +313,16 @@ def login(
             detail="Invalid email or password"
         )
 
-    if not existing_user.is_verified:
+    # =========================================
+    # TEMPORARY DISABLE EMAIL VERIFICATION
+    # =========================================
 
-        raise HTTPException(
-            status_code=403,
-            detail="Please verify your email before login"
-        )
+    # if not existing_user.is_verified:
+    #
+    #     raise HTTPException(
+    #         status_code=403,
+    #         detail="Please verify your email before login"
+    #     )
 
     access_token = create_access_token(
         data={
@@ -320,6 +340,10 @@ def login(
         "user_id": existing_user.id
     }
 
+
+# =========================================
+# FORGOT PASSWORD
+# =========================================
 
 @router.post("/forgot-password")
 async def forgot_password(
@@ -406,11 +430,6 @@ async def forgot_password(
                 This link will expire in 30 minutes.
             </p>
 
-            <p>
-                If you did not request this reset,
-                please ignore this email.
-            </p>
-
         </body>
     </html>
     """
@@ -425,6 +444,10 @@ async def forgot_password(
         "message": "If account exists, reset email sent successfully"
     }
 
+
+# =========================================
+# RESET PASSWORD
+# =========================================
 
 @router.post("/reset-password")
 def reset_password(
@@ -489,4 +512,3 @@ def reset_password(
     return {
         "message": "Password reset successful"
     }
-    
