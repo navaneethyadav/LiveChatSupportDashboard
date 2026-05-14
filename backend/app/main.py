@@ -79,17 +79,41 @@ Base.metadata.create_all(
 
 with engine.connect() as conn:
 
-    conn.execute(
-        text(
-            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS email VARCHAR"
-        )
-    )
+    try:
 
-    conn.execute(
-        text(
-            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS role VARCHAR"
+        conn.execute(
+            text(
+                "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS email VARCHAR"
+            )
         )
-    )
+
+    except Exception as e:
+
+        print("email column:", e)
+
+    try:
+
+        conn.execute(
+            text(
+                "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS role VARCHAR"
+            )
+        )
+
+    except Exception as e:
+
+        print("role column:", e)
+
+    try:
+
+        conn.execute(
+            text(
+                "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Open'"
+            )
+        )
+
+    except Exception as e:
+
+        print("status column:", e)
 
     conn.commit()
 
@@ -204,4 +228,3 @@ def profile(
         "logged_in_user": current_user
 
     }
-    
