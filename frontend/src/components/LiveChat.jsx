@@ -47,10 +47,6 @@ function LiveChat() {
     "email"
   )
 
-  const token = localStorage.getItem(
-    "token"
-  )
-
 
   const fetchMessages = async () => {
 
@@ -75,6 +71,10 @@ function LiveChat() {
 
   const connectWebSocket = () => {
 
+    const token = localStorage.getItem(
+      "token"
+    )
+
     if (!mountedRef.current) {
 
       return
@@ -82,7 +82,9 @@ function LiveChat() {
 
     if (!token) {
 
-      console.log("Token not found")
+      console.log(
+        "Token not found"
+      )
 
       return
     }
@@ -190,6 +192,8 @@ function LiveChat() {
 
       setIsConnected(false)
 
+      socketRef.current = null
+
       if (!mountedRef.current) {
 
         return
@@ -223,11 +227,6 @@ function LiveChat() {
 
 
   useEffect(() => {
-
-    if (mountedRef.current) {
-
-      return
-    }
 
     mountedRef.current = true
 
@@ -411,15 +410,11 @@ function LiveChat() {
         <div>
 
           <h2 className="text-3xl font-bold text-white">
-
             Live Support Chat
-
           </h2>
 
           <p className="text-slate-400">
-
             Real-time communication system
-
           </p>
 
         </div>
@@ -446,9 +441,7 @@ function LiveChat() {
           loading ? (
 
             <p className="text-slate-400">
-
               Loading chat...
-
             </p>
 
           ) : (
@@ -480,15 +473,11 @@ function LiveChat() {
                       <div>
 
                         <h3 className="font-bold text-cyan-300">
-
                           {msg.sender}
-
                         </h3>
 
                         <p className="text-xs text-slate-400">
-
                           {msg.email}
-
                         </p>
 
                       </div>
@@ -543,9 +532,7 @@ function LiveChat() {
                     </div>
 
                     <p className="text-white break-words">
-
                       {msg.message}
-
                     </p>
 
                   </div>
@@ -564,9 +551,7 @@ function LiveChat() {
         typingUser && (
 
           <p className="text-cyan-400 text-sm mt-3">
-
             {typingUser} is typing...
-
           </p>
 
         )

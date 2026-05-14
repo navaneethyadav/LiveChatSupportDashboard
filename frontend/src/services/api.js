@@ -1,9 +1,15 @@
 import axios from "axios"
 
 
+const BASE_URL =
+  window.location.hostname === "localhost"
+    ? "http://127.0.0.1:8000"
+    : "https://livechatsupportdashboard.onrender.com"
+
+
 const API = axios.create({
 
-  baseURL: "https://livechatsupportdashboard.onrender.com"
+  baseURL: BASE_URL
 
 })
 
@@ -44,6 +50,10 @@ API.interceptors.response.use(
       localStorage.removeItem("role")
 
       localStorage.removeItem("full_name")
+
+      localStorage.removeItem("email")
+
+      localStorage.removeItem("user_id")
 
       window.location.href = "/"
     }
