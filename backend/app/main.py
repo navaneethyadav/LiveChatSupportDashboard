@@ -79,6 +79,8 @@ Base.metadata.create_all(
 
 with engine.connect() as conn:
 
+    # chat_messages table
+
     try:
 
         conn.execute(
@@ -89,7 +91,7 @@ with engine.connect() as conn:
 
     except Exception as e:
 
-        print("email column:", e)
+        print("chat_messages email:", e)
 
     try:
 
@@ -101,7 +103,7 @@ with engine.connect() as conn:
 
     except Exception as e:
 
-        print("role column:", e)
+        print("chat_messages role:", e)
 
     try:
 
@@ -113,7 +115,9 @@ with engine.connect() as conn:
 
     except Exception as e:
 
-        print("status column:", e)
+        print("chat_messages status:", e)
+
+    # users table
 
     try:
 
@@ -125,7 +129,7 @@ with engine.connect() as conn:
 
     except Exception as e:
 
-        print("is_verified column:", e)
+        print("users is_verified:", e)
 
     conn.commit()
 
@@ -240,3 +244,4 @@ def profile(
         "logged_in_user": current_user
 
     }
+    
