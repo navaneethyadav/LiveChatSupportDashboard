@@ -99,7 +99,7 @@ function LiveChat() {
     }
 
     const socket = new WebSocket(
-      `ws://127.0.0.1:8000/ws/chat?token=${token}`
+      `wss://livechatsupportdashboard.onrender.com/ws/chat?token=${token}`
     )
 
     socketRef.current = socket
