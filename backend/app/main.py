@@ -5,6 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.staticfiles import StaticFiles
 
+from sqlalchemy import text
+
 import os
 
 from app.db.database import engine, Base
@@ -69,6 +71,27 @@ app.add_middleware(
 Base.metadata.create_all(
     bind=engine
 )
+
+
+# =========================
+# AUTO UPDATE DATABASE
+# =========================
+
+with engine.connect() as conn:
+
+    conn.execute(
+        text(
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS email VARCHAR"
+        )
+    )
+
+    conn.execute(
+        text(
+            "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS role VARCHAR"
+        )
+    )
+
+    conn.commit()
 
 
 # =========================
