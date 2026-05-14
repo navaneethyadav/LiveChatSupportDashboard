@@ -17,6 +17,7 @@ from app.models.categories import Category
 from app.models.feedback import Feedback
 from app.models.logs import Log
 from app.models.chat_message import ChatMessage
+from app.models.password_reset_token import PasswordResetToken
 
 from app.api.auth import router as auth_router
 from app.api.tickets import router as ticket_router
@@ -39,9 +40,9 @@ app = FastAPI(
 )
 
 
-# =========================
+# =========================================
 # CORS
-# =========================
+# =========================================
 
 app.add_middleware(
 
@@ -64,88 +65,60 @@ app.add_middleware(
 )
 
 
-# =========================
-# DATABASE TABLES
-# =========================
+# =========================================
+# CREATE DATABASE TABLES
+# =========================================
 
 Base.metadata.create_all(
     bind=engine
 )
 
 
-# =========================
-# AUTO UPDATE DATABASE
-# =========================
+# =========================================
+# AUTO DATABASE MIGRATION
+# =========================================
 
 with engine.connect() as conn:
 
     # chat_messages table
 
-    try:
+    conn.execute(text("""
+        ALTER TABLE chat_messages
+        ADD COLUMN IF NOT EXISTS email VARCHAR
+    """))
 
-        conn.execute(
-            text(
-                "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS email VARCHAR"
-            )
-        )
+    conn.execute(text("""
+        ALTER TABLE chat_messages
+        ADD COLUMN IF NOT EXISTS role VARCHAR
+    """))
 
-    except Exception as e:
-
-        print("chat_messages email:", e)
-
-    try:
-
-        conn.execute(
-            text(
-                "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS role VARCHAR"
-            )
-        )
-
-    except Exception as e:
-
-        print("chat_messages role:", e)
-
-    try:
-
-        conn.execute(
-            text(
-                "ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Open'"
-            )
-        )
-
-    except Exception as e:
-
-        print("chat_messages status:", e)
+    conn.execute(text("""
+        ALTER TABLE chat_messages
+        ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Open'
+    """))
 
     # users table
 
-    try:
-
-        conn.execute(
-            text(
-                "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE"
-            )
-        )
-
-    except Exception as e:
-
-        print("users is_verified:", e)
+    conn.execute(text("""
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE
+    """))
 
     conn.commit()
 
 
-# =========================
+# =========================================
 # CREATE uploads FOLDER
-# =========================
+# =========================================
 
 if not os.path.exists("uploads"):
 
     os.makedirs("uploads")
 
 
-# =========================
+# =========================================
 # STATIC FILES
-# =========================
+# =========================================
 
 app.mount(
     "/uploads",
@@ -154,18 +127,18 @@ app.mount(
 )
 
 
-# =========================
+# =========================================
 # PUBLIC ROUTES
-# =========================
+# =========================================
 
 app.include_router(auth_router)
 
 app.include_router(chatbot_router)
 
 
-# =========================
+# =========================================
 # PROTECTED ROUTES
-# =========================
+# =========================================
 
 app.include_router(
     ticket_router,
@@ -208,14 +181,16 @@ app.include_router(
 )
 
 
-# =========================
+# =========================================
 # WEBSOCKET ROUTES
-# =========================
+# =========================================
 
-app.include_router(
-    chat_router
-)
+app.include_router(chat_router)
 
+
+# =========================================
+# ROOT
+# =========================================
 
 @app.get("/")
 def root():
@@ -227,6 +202,10 @@ def root():
 
     }
 
+
+# =========================================
+# PROFILE
+# =========================================
 
 @app.get("/profile")
 def profile(
@@ -244,4 +223,3 @@ def profile(
         "logged_in_user": current_user
 
     }
-    
