@@ -1,16 +1,8 @@
 import axios from "axios"
 
-
-// =========================================
-// FORCE LOCAL BACKEND
-// =========================================
-
-const BASE_URL = "http://127.0.0.1:8000"
-
-
-// =========================================
-// AXIOS INSTANCE
-// =========================================
+const BASE_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://livechatsupportdashboard.onrender.com"
 
 const API = axios.create({
 
@@ -24,18 +16,11 @@ const API = axios.create({
 
 })
 
-
-// =========================================
-// REQUEST INTERCEPTOR
-// =========================================
-
 API.interceptors.request.use(
 
   (config) => {
 
-    const token = localStorage.getItem(
-      "token"
-    )
+    const token = localStorage.getItem("token")
 
     if (token) {
 
@@ -44,6 +29,7 @@ API.interceptors.request.use(
     }
 
     return config
+
   },
 
   (error) => {
@@ -53,11 +39,6 @@ API.interceptors.request.use(
   }
 
 )
-
-
-// =========================================
-// RESPONSE INTERCEPTOR
-// =========================================
 
 API.interceptors.response.use(
 
@@ -73,27 +54,14 @@ API.interceptors.response.use(
 
     ) {
 
-      localStorage.removeItem(
-        "token"
-      )
-
-      localStorage.removeItem(
-        "role"
-      )
-
-      localStorage.removeItem(
-        "full_name"
-      )
-
-      localStorage.removeItem(
-        "email"
-      )
-
-      localStorage.removeItem(
-        "user_id"
-      )
+      localStorage.removeItem("token")
+      localStorage.removeItem("role")
+      localStorage.removeItem("full_name")
+      localStorage.removeItem("email")
+      localStorage.removeItem("user_id")
 
       window.location.href = "/"
+
     }
 
     return Promise.reject(error)
@@ -101,10 +69,5 @@ API.interceptors.response.use(
   }
 
 )
-
-
-// =========================================
-// EXPORT
-// =========================================
 
 export default API

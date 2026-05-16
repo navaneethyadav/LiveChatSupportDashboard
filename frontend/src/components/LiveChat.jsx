@@ -117,9 +117,11 @@ function LiveChat() {
       }
 
       const WS_BASE_URL =
-        window.location.hostname === "localhost"
-          ? "ws://127.0.0.1:8000"
-          : "wss://livechatsupportdashboard.onrender.com"
+        import.meta.env.VITE_API_URL
+          ?.replace("https://", "wss://")
+          ?.replace("http://", "ws://")
+          ||
+          "wss://livechatsupportdashboard.onrender.com"
 
       // FIX JWT TOKEN URL ISSUE
       const websocketUrl =
