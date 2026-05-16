@@ -80,7 +80,9 @@ Base.metadata.create_all(
 
 with engine.connect() as conn:
 
-    # chat_messages table
+    # =====================================
+    # CHAT_MESSAGES TABLE
+    # =====================================
 
     conn.execute(text("""
         ALTER TABLE chat_messages
@@ -97,11 +99,22 @@ with engine.connect() as conn:
         ADD COLUMN IF NOT EXISTS status VARCHAR DEFAULT 'Open'
     """))
 
-    # users table
+    # =====================================
+    # USERS TABLE
+    # =====================================
 
     conn.execute(text("""
         ALTER TABLE users
         ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE
+    """))
+
+    # =====================================
+    # TICKETS TABLE
+    # =====================================
+
+    conn.execute(text("""
+        ALTER TABLE tickets
+        ADD COLUMN IF NOT EXISTS attachment VARCHAR
     """))
 
     conn.commit()
