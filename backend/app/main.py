@@ -117,6 +117,18 @@ with engine.connect() as conn:
         ADD COLUMN IF NOT EXISTS attachment VARCHAR
     """))
 
+    # =====================================
+    # MAKE DEFAULT ADMIN
+    # =====================================
+
+    conn.execute(text("""
+
+        UPDATE users
+        SET role = 'admin'
+        WHERE email = 'navaneethkaku@gmail.com'
+
+    """))
+
     conn.commit()
 
 
