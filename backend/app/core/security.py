@@ -3,10 +3,13 @@ import re
 import hashlib
 import secrets
 
+from pathlib import Path
+
 from passlib.context import CryptContext
 
 from jose import jwt
 from jose import JWTError
+from jose.exceptions import ExpiredSignatureError
 
 from datetime import datetime
 from datetime import timedelta
@@ -20,10 +23,20 @@ from dotenv import load_dotenv
 from app.models.users import User
 
 
-load_dotenv()
+# =========================================
+# LOAD ENV
+# =========================================
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+env_path = BASE_DIR / ".env"
+
+load_dotenv(dotenv_path=env_path)
 
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY = str(
+    os.getenv("SECRET_KEY", "")
+).strip()
 
 ALGORITHM = "HS256"
 
@@ -34,11 +47,25 @@ RESET_TOKEN_EXPIRE_MINUTES = 30
 EMAIL_VERIFICATION_EXPIRE_HOURS = 24
 
 
+print("SECRET_KEY LOADED =>", SECRET_KEY)
+
+
+if not SECRET_KEY:
+
+    raise Exception(
+        "SECRET_KEY not found in .env"
+    )
+
+
 pwd_context = CryptContext(
     schemes=["pbkdf2_sha256"],
     deprecated="auto"
 )
 
+
+# =========================================
+# PASSWORD HASHING
+# =========================================
 
 def hash_password(password: str):
 
@@ -55,6 +82,10 @@ def verify_password(
         hashed_password
     )
 
+
+# =========================================
+# ACCESS TOKEN
+# =========================================
 
 def create_access_token(data: dict):
 
@@ -74,6 +105,8 @@ def create_access_token(data: dict):
         algorithm=ALGORITHM
     )
 
+    print("TOKEN CREATED SUCCESSFULLY")
+
     return encoded_jwt
 
 
@@ -87,22 +120,44 @@ def verify_access_token(token: str):
             algorithms=[ALGORITHM]
         )
 
+        print(
+            "TOKEN VERIFIED SUCCESSFULLY"
+        )
+
         return payload
 
-    except JWTError:
+    except ExpiredSignatureError:
 
         raise HTTPException(
             status_code=401,
-            detail="Invalid or expired token"
+            detail="Token expired"
         )
 
+    except JWTError as e:
+
+        print(
+            "JWT ERROR =>",
+            str(e)
+        )
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid token"
+        )
+
+
+# =========================================
+# CURRENT USER
+# =========================================
 
 def get_current_user(
     token: str,
     db: Session
 ):
 
-    payload = verify_access_token(token)
+    payload = verify_access_token(
+        token
+    )
 
     email = payload.get("sub")
 
@@ -139,9 +194,9 @@ def require_admin(current_user):
     return current_user
 
 
-# =========================
+# =========================================
 # PASSWORD RESET SECURITY
-# =========================
+# =========================================
 
 def generate_reset_token():
 
@@ -162,9 +217,9 @@ def get_reset_token_expiry():
     )
 
 
-# =========================
+# =========================================
 # EMAIL VERIFICATION
-# =========================
+# =========================================
 
 def create_email_verification_token(email: str):
 
@@ -173,9 +228,13 @@ def create_email_verification_token(email: str):
     )
 
     payload = {
+
         "sub": email,
+
         "purpose": "email_verification",
+
         "exp": expire
+
     }
 
     return jwt.encode(
@@ -195,7 +254,9 @@ def verify_email_verification_token(token: str):
             algorithms=[ALGORITHM]
         )
 
-        if payload.get("purpose") != "email_verification":
+        if payload.get(
+            "purpose"
+        ) != "email_verification":
 
             raise HTTPException(
                 status_code=400,
@@ -212,9 +273,9 @@ def verify_email_verification_token(token: str):
         )
 
 
-# =========================
+# =========================================
 # PASSWORD VALIDATION
-# =========================
+# =========================================
 
 def validate_password_strength(password: str):
 
@@ -229,27 +290,29 @@ def validate_password_strength(password: str):
 
         raise HTTPException(
             status_code=400,
-            detail="Password must contain at least one uppercase letter"
+            detail="Password must contain uppercase letter"
         )
 
     if not re.search(r"[a-z]", password):
 
         raise HTTPException(
             status_code=400,
-            detail="Password must contain at least one lowercase letter"
+            detail="Password must contain lowercase letter"
         )
 
     if not re.search(r"\d", password):
 
         raise HTTPException(
             status_code=400,
-            detail="Password must contain at least one number"
+            detail="Password must contain number"
         )
 
     if not re.search(r"[@$!%*?&]", password):
 
         raise HTTPException(
             status_code=400,
-            detail="Password must contain at least one special character"
+            detail="Password must contain special character"
         )
-        
+
+    return True
+    

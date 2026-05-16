@@ -31,9 +31,7 @@ function LiveChat() {
 
   const messagesEndRef = useRef(null)
 
-  const mountedRef = useRef(false)
-
-  const reconnectingRef = useRef(false)
+  const reconnectAttemptsRef = useRef(0)
 
   const fullName = localStorage.getItem(
     "full_name"
@@ -48,6 +46,10 @@ function LiveChat() {
   )
 
 
+  // =========================================
+  // FETCH OLD MESSAGES
+  // =========================================
+
   const fetchMessages = async () => {
 
     try {
@@ -60,7 +62,10 @@ function LiveChat() {
 
     } catch (error) {
 
-      console.log(error)
+      console.log(
+        "Fetch Messages Error:",
+        error
+      )
 
     } finally {
 
@@ -69,174 +74,260 @@ function LiveChat() {
   }
 
 
+  // =========================================
+  // CONNECT WEBSOCKET
+  // =========================================
+
   const connectWebSocket = () => {
 
-    const token = localStorage.getItem(
-      "token"
-    )
+    try {
 
-    if (!mountedRef.current) {
-
-      return
-    }
-
-    if (!token) {
+      const token = localStorage.getItem(
+        "token"
+      )
 
       console.log(
-        "Token not found"
+        "Current Token:",
+        token
       )
 
-      return
-    }
+      if (!token) {
 
-    if (
-      socketRef.current &&
-      (
-        socketRef.current.readyState === WebSocket.OPEN ||
-        socketRef.current.readyState === WebSocket.CONNECTING
-      )
-    ) {
-
-      return
-    }
-
-    const WS_BASE_URL =
-      window.location.hostname === "localhost"
-        ? "ws://127.0.0.1:8000"
-        : "wss://livechatsupportdashboard.onrender.com"
-
-    const socket = new WebSocket(
-      `${WS_BASE_URL}/ws/chat?token=${token}`
-    )
-
-    socketRef.current = socket
-
-    socket.onopen = () => {
-
-      console.log(
-        "WebSocket Connected"
-      )
-
-      setIsConnected(true)
-
-      reconnectingRef.current = false
-    }
-
-    socket.onmessage = (
-      event
-    ) => {
-
-      const parsedMessage = JSON.parse(
-        event.data
-      )
-
-      if (
-        parsedMessage.is_typing
-      ) {
-
-        if (
-          parsedMessage.sender !== fullName
-        ) {
-
-          setTypingUser(
-            parsedMessage.sender
-          )
-
-          clearTimeout(
-            typingTimeoutRef.current
-          )
-
-          typingTimeoutRef.current =
-            setTimeout(() => {
-
-              setTypingUser("")
-
-            }, 2000)
-        }
-
-        return
-      }
-
-      setMessages((prev) => {
-
-        const alreadyExists = prev.some(
-          (msg) =>
-            msg.id === parsedMessage.id
+        console.log(
+          "No token found"
         )
 
-        if (alreadyExists) {
+        return
+      }
 
-          return prev
-        }
+      // PREVENT DUPLICATE CONNECTIONS
+      if (
+        socketRef.current &&
+        (
+          socketRef.current.readyState === WebSocket.OPEN ||
+          socketRef.current.readyState === WebSocket.CONNECTING
+        )
+      ) {
 
-        if (
-          role !== "admin" &&
-          parsedMessage.email !== email
-        ) {
+        console.log(
+          "WebSocket already active"
+        )
 
-          return prev
-        }
+        return
+      }
 
-        return [
-          ...prev,
-          parsedMessage
-        ]
-      })
-    }
+      const WS_BASE_URL =
+        window.location.hostname === "localhost"
+          ? "ws://127.0.0.1:8000"
+          : "wss://livechatsupportdashboard.onrender.com"
 
-    socket.onclose = () => {
+      // FIX JWT TOKEN URL ISSUE
+      const websocketUrl =
+        `${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}`
 
       console.log(
-        "WebSocket Disconnected"
+        "Connecting to:",
+        websocketUrl
       )
 
-      setIsConnected(false)
+      const socket = new WebSocket(
+        websocketUrl
+      )
 
-      socketRef.current = null
+      socketRef.current = socket
 
-      if (!mountedRef.current) {
 
-        return
+      // =========================================
+      // SOCKET OPEN
+      // =========================================
+
+      socket.onopen = () => {
+
+        console.log(
+          "WebSocket Connected Successfully"
+        )
+
+        setIsConnected(true)
+
+        reconnectAttemptsRef.current = 0
       }
 
-      if (reconnectingRef.current) {
 
-        return
+      // =========================================
+      // SOCKET MESSAGE
+      // =========================================
+
+      socket.onmessage = (
+        event
+      ) => {
+
+        try {
+
+          const parsedMessage = JSON.parse(
+            event.data
+          )
+
+          // TYPING EVENT
+          if (
+            parsedMessage.is_typing
+          ) {
+
+            if (
+              parsedMessage.sender !== fullName
+            ) {
+
+              setTypingUser(
+                parsedMessage.sender
+              )
+
+              clearTimeout(
+                typingTimeoutRef.current
+              )
+
+              typingTimeoutRef.current =
+                setTimeout(() => {
+
+                  setTypingUser("")
+
+                }, 2000)
+            }
+
+            return
+          }
+
+          setMessages((prev) => {
+
+            const alreadyExists = prev.some(
+              (msg) =>
+                msg.id === parsedMessage.id
+            )
+
+            if (alreadyExists) {
+
+              return prev
+            }
+
+            // NORMAL USERS SEE ONLY THEIR MESSAGES
+            if (
+              role !== "admin" &&
+              parsedMessage.email !== email
+            ) {
+
+              return prev
+            }
+
+            return [
+              ...prev,
+              parsedMessage
+            ]
+          })
+
+        } catch (error) {
+
+          console.log(
+            "Message Parse Error:",
+            error
+          )
+        }
       }
 
-      reconnectingRef.current = true
 
-      reconnectTimeoutRef.current =
-        setTimeout(() => {
+      // =========================================
+      // SOCKET CLOSE
+      // =========================================
 
-          connectWebSocket()
+      socket.onclose = (
+        event
+      ) => {
 
-        }, 3000)
-    }
+        console.log(
+          "WebSocket Closed:",
+          event.code
+        )
 
-    socket.onerror = (
-      error
-    ) => {
+        setIsConnected(false)
+
+        socketRef.current = null
+
+        // AUTH ERROR
+        if (
+          event.code === 1008
+        ) {
+
+          console.log(
+            "Authentication failed"
+          )
+
+          localStorage.clear()
+
+          return
+        }
+
+        // LIMIT RECONNECTS
+        if (
+          reconnectAttemptsRef.current >= 5
+        ) {
+
+          console.log(
+            "Reconnect limit reached"
+          )
+
+          return
+        }
+
+        reconnectAttemptsRef.current += 1
+
+        reconnectTimeoutRef.current =
+          setTimeout(() => {
+
+            connectWebSocket()
+
+          }, 3000)
+      }
+
+
+      // =========================================
+      // SOCKET ERROR
+      // =========================================
+
+      socket.onerror = (
+        error
+      ) => {
+
+        console.log(
+          "WebSocket Error:",
+          error
+        )
+      }
+
+    } catch (error) {
 
       console.log(
-        "WebSocket Error:",
+        "WebSocket Connection Error:",
         error
       )
     }
   }
 
 
-  useEffect(() => {
+  // =========================================
+  // INITIAL LOAD
+  // =========================================
 
-    mountedRef.current = true
+  useEffect(() => {
 
     fetchMessages()
 
-    connectWebSocket()
+    const token = localStorage.getItem(
+      "token"
+    )
+
+    if (token) {
+
+      connectWebSocket()
+    }
 
     return () => {
-
-      mountedRef.current = false
 
       clearTimeout(
         reconnectTimeoutRef.current
@@ -249,11 +340,17 @@ function LiveChat() {
       if (socketRef.current) {
 
         socketRef.current.close()
+
+        socketRef.current = null
       }
     }
 
   }, [])
 
+
+  // =========================================
+  // AUTO SCROLL
+  // =========================================
 
   useEffect(() => {
 
@@ -265,6 +362,10 @@ function LiveChat() {
 
   }, [messages])
 
+
+  // =========================================
+  // HANDLE TYPING
+  // =========================================
 
   const handleTyping = (
     e
@@ -294,6 +395,10 @@ function LiveChat() {
   }
 
 
+  // =========================================
+  // SEND MESSAGE
+  // =========================================
+
   const sendMessage = () => {
 
     if (
@@ -318,7 +423,7 @@ function LiveChat() {
     socketRef.current.send(
       JSON.stringify({
 
-        message: input,
+        message: input.trim(),
 
         status: "Open",
 
@@ -330,6 +435,10 @@ function LiveChat() {
     setInput("")
   }
 
+
+  // =========================================
+  // ENTER KEY
+  // =========================================
 
   const handleKeyDown = (
     e
@@ -343,6 +452,10 @@ function LiveChat() {
     }
   }
 
+
+  // =========================================
+  // UPDATE STATUS
+  // =========================================
 
   const updateStatus = async (
     messageId,
@@ -372,10 +485,17 @@ function LiveChat() {
 
     } catch (error) {
 
-      console.log(error)
+      console.log(
+        "Status Update Error:",
+        error
+      )
     }
   }
 
+
+  // =========================================
+  // STATUS COLOR
+  // =========================================
 
   const getStatusColor = (
     status
@@ -428,7 +548,7 @@ function LiveChat() {
           {
             isConnected
               ? "Online"
-              : "Reconnecting..."
+              : "Offline"
           }
 
         </div>

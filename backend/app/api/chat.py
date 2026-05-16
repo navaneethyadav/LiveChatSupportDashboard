@@ -7,6 +7,8 @@ from fastapi import Query
 
 from sqlalchemy.orm import Session
 
+from urllib.parse import unquote
+
 from app.db.database import SessionLocal
 from app.db.deps import get_db
 
@@ -14,6 +16,7 @@ from app.models.chat_message import ChatMessage
 from app.models.users import User
 
 from app.core.security import verify_access_token
+from app.core.security import SECRET_KEY
 
 from datetime import datetime
 
@@ -61,9 +64,7 @@ class ConnectionManager:
             try:
 
                 await connection.send_text(
-                    json.dumps(
-                        message_data
-                    )
+                    json.dumps(message_data)
                 )
 
             except Exception:
@@ -81,6 +82,10 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+
+# =========================================
+# GET CHAT MESSAGES
+# =========================================
 
 @router.get("/chat/messages")
 def get_chat_messages(
@@ -114,6 +119,10 @@ def get_chat_messages(
     return messages
 
 
+# =========================================
+# UPDATE MESSAGE STATUS
+# =========================================
+
 @router.put("/chat/status/{message_id}")
 def update_chat_status(
 
@@ -134,11 +143,8 @@ def update_chat_status(
     if not message:
 
         raise HTTPException(
-
             status_code=404,
-
             detail="Message not found"
-
         )
 
     message.status = status
@@ -148,23 +154,39 @@ def update_chat_status(
     db.refresh(message)
 
     return {
-
         "message":
         "Status updated successfully"
-
     }
 
+
+# =========================================
+# WEBSOCKET CHAT
+# =========================================
 
 @router.websocket("/ws/chat")
 async def websocket_chat(
     websocket: WebSocket
 ):
 
-    token = websocket.query_params.get(
+    # =========================================
+    # GET TOKEN
+    # =========================================
+
+    raw_token = websocket.query_params.get(
         "token"
     )
 
+    token = (
+        unquote(raw_token)
+        if raw_token
+        else None
+    )
+
     if not token:
+
+        print(
+            "WebSocket Error: No token provided"
+        )
 
         await websocket.close(
             code=1008
@@ -172,17 +194,52 @@ async def websocket_chat(
 
         return
 
+    # =========================================
+    # VERIFY TOKEN
+    # =========================================
+
     try:
+
+        print(
+            "WS SECRET_KEY:",
+            SECRET_KEY
+        )
+
+        print(
+            "WS TOKEN:",
+            token
+        )
 
         payload = verify_access_token(
             token
         )
+
+        print(
+            "WS PAYLOAD:",
+            payload
+        )
+
+        if not payload:
+
+            print(
+                "WebSocket Error: Invalid payload"
+            )
+
+            await websocket.close(
+                code=1008
+            )
+
+            return
 
         email = payload.get(
             "sub"
         )
 
         if not email:
+
+            print(
+                "WebSocket Error: No email in token"
+            )
 
             await websocket.close(
                 code=1008
@@ -194,7 +251,7 @@ async def websocket_chat(
 
         print(
             "WebSocket Auth Error:",
-            e
+            str(e)
         )
 
         await websocket.close(
@@ -202,6 +259,10 @@ async def websocket_chat(
         )
 
         return
+
+    # =========================================
+    # CONNECT
+    # =========================================
 
     await manager.connect(
         websocket
@@ -221,6 +282,10 @@ async def websocket_chat(
 
         if not user:
 
+            print(
+                "WebSocket Error: User not found"
+            )
+
             manager.disconnect(
                 websocket
             )
@@ -228,6 +293,10 @@ async def websocket_chat(
             await websocket.close()
 
             return
+
+        # =========================================
+        # RECEIVE LOOP
+        # =========================================
 
         while True:
 
@@ -258,6 +327,7 @@ async def websocket_chat(
 
             saved_message = None
 
+            # SAVE ONLY REAL MESSAGES
             if (
                 not is_typing and
                 message.strip()
@@ -295,10 +365,16 @@ async def websocket_chat(
                     f"{user.full_name}: {message}"
                 )
 
+            # =========================================
+            # RESPONSE
+            # =========================================
+
             response_data = {
 
                 "id":
-                saved_message.id if saved_message else None,
+                saved_message.id
+                if saved_message
+                else None,
 
                 "sender":
                 user.full_name,
@@ -341,7 +417,7 @@ async def websocket_chat(
 
         print(
             "WebSocket Runtime Error:",
-            e
+            str(e)
         )
 
         manager.disconnect(

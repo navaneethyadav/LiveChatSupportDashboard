@@ -29,7 +29,8 @@ from app.core.security import (
     get_reset_token_expiry,
     validate_password_strength,
     create_email_verification_token,
-    verify_email_verification_token
+    verify_email_verification_token,
+    SECRET_KEY
 )
 
 from app.services.email_service import send_email
@@ -313,16 +314,10 @@ def login(
             detail="Invalid email or password"
         )
 
-    # =========================================
-    # TEMPORARY DISABLE EMAIL VERIFICATION
-    # =========================================
-
-    # if not existing_user.is_verified:
-    #
-    #     raise HTTPException(
-    #         status_code=403,
-    #         detail="Please verify your email before login"
-    #     )
+    print(
+        "LOGIN SECRET =>",
+        SECRET_KEY
+    )
 
     access_token = create_access_token(
         data={
@@ -331,13 +326,25 @@ def login(
         }
     )
 
+    print(
+        "LOGIN TOKEN CREATED =>",
+        access_token
+    )
+
     return {
+
         "access_token": access_token,
+
         "token_type": "bearer",
+
         "role": existing_user.role,
+
         "full_name": existing_user.full_name,
+
         "email": existing_user.email,
+
         "user_id": existing_user.id
+
     }
 
 

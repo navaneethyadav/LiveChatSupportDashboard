@@ -3,12 +3,8 @@ from fastapi import HTTPException
 
 from sqlalchemy.orm import Session
 
-from jose import jwt
-from jose import JWTError
-
 from app.core.security import (
-    SECRET_KEY,
-    ALGORITHM
+    verify_access_token
 )
 
 from app.db.deps import (
@@ -39,17 +35,11 @@ def get_current_user(
 
     try:
 
-        payload = jwt.decode(
-
-            token,
-
-            SECRET_KEY,
-
-            algorithms=[ALGORITHM]
-
+        payload = verify_access_token(
+            token
         )
 
-        email: str = payload.get(
+        email = payload.get(
             "sub"
         )
 
@@ -57,20 +47,17 @@ def get_current_user(
 
             raise credentials_exception
 
-    except JWTError:
+    except Exception:
 
         raise credentials_exception
-
 
     user = db.query(User).filter(
         User.email == email
     ).first()
 
-
     if user is None:
 
         raise credentials_exception
-
 
     return user
 
