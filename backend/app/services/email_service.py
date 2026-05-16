@@ -1,6 +1,14 @@
-from fastapi_mail import FastMail, MessageSchema
+import os
 
-from app.core.email import conf
+import resend
+
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+resend.api_key = os.getenv("RESEND_API_KEY")
 
 
 async def send_email(
@@ -9,18 +17,14 @@ async def send_email(
     body: str
 ):
 
-    message = MessageSchema(
+    resend.Emails.send({
 
-        subject=subject,
+        "from": "SupportHub <onboarding@resend.dev>",
 
-        recipients=[email],
+        "to": email,
 
-        body=body,
+        "subject": subject,
 
-        subtype="html"
-    )
+        "html": body
 
-    fm = FastMail(conf)
-
-    await fm.send_message(message)
-    
+    })
