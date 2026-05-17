@@ -4,17 +4,25 @@ from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
+from dotenv import load_dotenv
+
+import os
+
 from app.db.database import Base
+
+# =========================================
+# IMPORT ALL MODELS
+# =========================================
+
 from app.models.users import User
 from app.models.tickets import Ticket
 from app.models.categories import Category
 from app.models.feedback import Feedback
 from app.models.logs import Log
 from app.models.chat_message import ChatMessage
-
-from dotenv import load_dotenv
-
-import os
+from app.models.ticket_reply import TicketReply
+from app.models.notifications import Notification
+from app.models.password_reset_token import PasswordResetToken
 
 
 load_dotenv()
@@ -31,6 +39,7 @@ config.set_main_option(
 
 
 if config.config_file_name is not None:
+
     fileConfig(config.config_file_name)
 
 
@@ -39,23 +48,31 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
 
-    url = config.get_main_option("sqlalchemy.url")
+    url = config.get_main_option(
+        "sqlalchemy.url"
+    )
 
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
+        dialect_opts={
+            "paramstyle": "named"
+        },
     )
 
     with context.begin_transaction():
+
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
 
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        config.get_section(
+            config.config_ini_section,
+            {}
+        ),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -68,10 +85,15 @@ def run_migrations_online() -> None:
         )
 
         with context.begin_transaction():
+
             context.run_migrations()
 
 
 if context.is_offline_mode():
+
     run_migrations_offline()
+
 else:
+
     run_migrations_online()
+    

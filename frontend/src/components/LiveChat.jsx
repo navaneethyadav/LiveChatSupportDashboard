@@ -1,7 +1,8 @@
 import {
   useEffect,
   useRef,
-  useState
+  useState,
+  useCallback
 } from "react"
 
 import API from "../services/api"
@@ -10,454 +11,410 @@ import {
   FiSend
 } from "react-icons/fi"
 
+import {
+  sendSocketMessage,
+  subscribeMessages,
+  subscribeTyping,
+  subscribeStatusUpdates
+} from "../services/socket"
+
+import {
+  useSocket
+} from "../context/SocketContext"
 
 function LiveChat() {
 
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] =
+    useState([])
 
-  const [input, setInput] = useState("")
+  const [input, setInput] =
+    useState("")
 
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] =
+    useState(true)
 
-  const [typingUser, setTypingUser] = useState("")
+  const [typingUser, setTypingUser] =
+    useState("")
 
-  const [isConnected, setIsConnected] = useState(false)
+  const typingTimeoutRef =
+    useRef(null)
 
-  const socketRef = useRef(null)
+  const messagesEndRef =
+    useRef(null)
 
-  const reconnectTimeoutRef = useRef(null)
+  const fetchedRef =
+    useRef(false)
 
-  const typingTimeoutRef = useRef(null)
+  const {
+    isConnected
+  } = useSocket()
 
-  const messagesEndRef = useRef(null)
+  const fullName =
+    localStorage.getItem(
+      "full_name"
+    )
 
-  const reconnectAttemptsRef = useRef(0)
+  const role =
+    localStorage.getItem(
+      "role"
+    )
 
-  const fullName = localStorage.getItem(
-    "full_name"
-  )
+  const email =
+    localStorage.getItem(
+      "email"
+    )
 
-  const role = localStorage.getItem(
-    "role"
-  )
+  // =====================================
+  // FORMAT TIME
+  // =====================================
 
-  const email = localStorage.getItem(
-    "email"
-  )
+  const formatTimestamp = (
+    timestamp
+  ) => {
 
+    if (!timestamp) {
 
-  // =========================================
-  // FETCH OLD MESSAGES
-  // =========================================
-
-  const fetchMessages = async () => {
+      return ""
+    }
 
     try {
 
-      const response = await API.get(
-        `/chat/messages?email=${email}&role=${role}`
-      )
+      return new Date(
+        timestamp
+      ).toLocaleString("en-IN", {
 
-      setMessages(response.data)
+        year: "numeric",
 
-    } catch (error) {
+        month: "short",
 
-      console.log(
-        "Fetch Messages Error:",
-        error
-      )
+        day: "numeric",
 
-    } finally {
+        hour: "2-digit",
 
-      setLoading(false)
+        minute: "2-digit",
+
+        hour12: true
+      })
+
+    } catch {
+
+      return ""
     }
   }
 
+  // =====================================
+  // FETCH MESSAGES
+  // =====================================
 
-  // =========================================
-  // CONNECT WEBSOCKET
-  // =========================================
+  const fetchMessages =
+    useCallback(async () => {
 
-  const connectWebSocket = () => {
+      try {
 
-    try {
+        setLoading(true)
 
-      const token = localStorage.getItem(
-        "token"
-      )
+        const response =
+          await API.get(
 
-      console.log(
-        "Current Token:",
-        token
-      )
-
-      if (!token) {
-
-        console.log(
-          "No token found"
-        )
-
-        return
-      }
-
-      // PREVENT DUPLICATE CONNECTIONS
-      if (
-        socketRef.current &&
-        (
-          socketRef.current.readyState === WebSocket.OPEN ||
-          socketRef.current.readyState === WebSocket.CONNECTING
-        )
-      ) {
-
-        console.log(
-          "WebSocket already active"
-        )
-
-        return
-      }
-
-      const WS_BASE_URL =
-        import.meta.env.VITE_API_URL
-          ?.replace("https://", "wss://")
-          ?.replace("http://", "ws://")
-          ||
-          "wss://livechatsupportdashboard.onrender.com"
-
-      // FIX JWT TOKEN URL ISSUE
-      const websocketUrl =
-        `${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(token)}`
-
-      console.log(
-        "Connecting to:",
-        websocketUrl
-      )
-
-      const socket = new WebSocket(
-        websocketUrl
-      )
-
-      socketRef.current = socket
-
-
-      // =========================================
-      // SOCKET OPEN
-      // =========================================
-
-      socket.onopen = () => {
-
-        console.log(
-          "WebSocket Connected Successfully"
-        )
-
-        setIsConnected(true)
-
-        reconnectAttemptsRef.current = 0
-      }
-
-
-      // =========================================
-      // SOCKET MESSAGE
-      // =========================================
-
-      socket.onmessage = (
-        event
-      ) => {
-
-        try {
-
-          const parsedMessage = JSON.parse(
-            event.data
+            `/chat/messages?email=${email}&role=${role}`
           )
 
-          // TYPING EVENT
-          if (
-            parsedMessage.is_typing
-          ) {
-
-            if (
-              parsedMessage.sender !== fullName
-            ) {
-
-              setTypingUser(
-                parsedMessage.sender
-              )
-
-              clearTimeout(
-                typingTimeoutRef.current
-              )
-
-              typingTimeoutRef.current =
-                setTimeout(() => {
-
-                  setTypingUser("")
-
-                }, 2000)
-            }
-
-            return
-          }
-
-          setMessages((prev) => {
-
-            const alreadyExists = prev.some(
-              (msg) =>
-                msg.id === parsedMessage.id
-            )
-
-            if (alreadyExists) {
-
-              return prev
-            }
-
-            // NORMAL USERS SEE ONLY THEIR MESSAGES
-            if (
-              role !== "admin" &&
-              parsedMessage.email !== email
-            ) {
-
-              return prev
-            }
-
-            return [
-              ...prev,
-              parsedMessage
-            ]
-          })
-
-        } catch (error) {
-
-          console.log(
-            "Message Parse Error:",
-            error
+        const sortedMessages =
+          (response.data || []).sort(
+            (a, b) => a.id - b.id
           )
-        }
-      }
 
-
-      // =========================================
-      // SOCKET CLOSE
-      // =========================================
-
-      socket.onclose = (
-        event
-      ) => {
-
-        console.log(
-          "WebSocket Closed:",
-          event.code
+        setMessages(
+          sortedMessages
         )
 
-        setIsConnected(false)
-
-        socketRef.current = null
-
-        // AUTH ERROR
-        if (
-          event.code === 1008
-        ) {
-
-          console.log(
-            "Authentication failed"
-          )
-
-          localStorage.clear()
-
-          return
-        }
-
-        // LIMIT RECONNECTS
-        if (
-          reconnectAttemptsRef.current >= 5
-        ) {
-
-          console.log(
-            "Reconnect limit reached"
-          )
-
-          return
-        }
-
-        reconnectAttemptsRef.current += 1
-
-        reconnectTimeoutRef.current =
-          setTimeout(() => {
-
-            connectWebSocket()
-
-          }, 3000)
-      }
-
-
-      // =========================================
-      // SOCKET ERROR
-      // =========================================
-
-      socket.onerror = (
-        error
-      ) => {
+      } catch (error) {
 
         console.log(
-          "WebSocket Error:",
+          "Fetch Messages Error:",
           error
         )
+
+      } finally {
+
+        setLoading(false)
       }
 
-    } catch (error) {
+    }, [email, role])
 
-      console.log(
-        "WebSocket Connection Error:",
-        error
-      )
-    }
-  }
-
-
-  // =========================================
-  // INITIAL LOAD
-  // =========================================
+  // =====================================
+  // INITIAL FETCH
+  // =====================================
 
   useEffect(() => {
 
+    if (fetchedRef.current) {
+
+      return
+    }
+
+    fetchedRef.current = true
+
     fetchMessages()
 
-    const token = localStorage.getItem(
-      "token"
-    )
+  }, [fetchMessages])
 
-    if (token) {
+  // =====================================
+  // SOCKET EVENTS
+  // =====================================
 
-      connectWebSocket()
-    }
+  useEffect(() => {
+
+    // ===================================
+    // NEW MESSAGE
+    // ===================================
+
+    const unsubscribeMessages =
+      subscribeMessages((message) => {
+
+        setMessages((prevMessages) => {
+
+          // =============================
+          // INVALID MESSAGE
+          // =============================
+
+          if (!message?.id) {
+
+            return prevMessages
+          }
+
+          // =============================
+          // DUPLICATE CHECK
+          // =============================
+
+          const alreadyExists =
+            prevMessages.some(
+              (msg) => msg.id === message.id
+            )
+
+          if (alreadyExists) {
+
+            return prevMessages
+          }
+
+          // =============================
+          // USER FILTER
+          // =============================
+
+          if (role !== "admin") {
+
+            const isOwnMessage =
+              message.email === email
+
+            const isAdminMessage =
+              message.role === "admin"
+
+            if (
+              !isOwnMessage &&
+              !isAdminMessage
+            ) {
+
+              return prevMessages
+            }
+          }
+
+          // =============================
+          // ADD + SORT
+          // =============================
+
+          const updatedMessages = [
+            ...prevMessages,
+            message
+          ]
+
+          updatedMessages.sort(
+            (a, b) => a.id - b.id
+          )
+
+          return updatedMessages
+        })
+      })
+
+    // ===================================
+    // TYPING EVENTS
+    // ===================================
+
+    const unsubscribeTyping =
+      subscribeTyping((typingData) => {
+
+        if (
+          !typingData?.sender
+        ) {
+
+          return
+        }
+
+        if (
+          typingData.sender === fullName
+        ) {
+
+          return
+        }
+
+        setTypingUser(
+          typingData.sender
+        )
+
+        clearTimeout(
+          typingTimeoutRef.current
+        )
+
+        typingTimeoutRef.current =
+          setTimeout(() => {
+
+            setTypingUser("")
+
+          }, 1500)
+      })
+
+    // ===================================
+    // STATUS UPDATES
+    // ===================================
+
+    const unsubscribeStatus =
+      subscribeStatusUpdates((statusData) => {
+
+        if (!statusData?.id) {
+
+          return
+        }
+
+        setMessages((prevMessages) =>
+
+          prevMessages.map((msg) =>
+
+            msg.id === statusData.id
+
+              ? {
+                  ...msg,
+                  status:
+                    statusData.status
+                }
+
+              : msg
+          )
+        )
+      })
+
+    // ===================================
+    // CLEANUP
+    // ===================================
 
     return () => {
 
-      clearTimeout(
-        reconnectTimeoutRef.current
-      )
+      unsubscribeMessages()
+
+      unsubscribeTyping()
+
+      unsubscribeStatus()
 
       clearTimeout(
         typingTimeoutRef.current
       )
-
-      if (socketRef.current) {
-
-        socketRef.current.close()
-
-        socketRef.current = null
-      }
     }
 
-  }, [])
+  }, [
+    email,
+    role,
+    fullName
+  ])
 
-
-  // =========================================
+  // =====================================
   // AUTO SCROLL
-  // =========================================
+  // =====================================
 
   useEffect(() => {
 
-    messagesEndRef.current?.scrollIntoView({
+    messagesEndRef.current
+      ?.scrollIntoView({
 
-      behavior: "smooth"
-
-    })
+        behavior: "smooth"
+      })
 
   }, [messages])
 
-
-  // =========================================
+  // =====================================
   // HANDLE TYPING
-  // =========================================
+  // =====================================
 
-  const handleTyping = (
-    e
-  ) => {
+  const handleTyping = (e) => {
 
-    setInput(
+    const value =
       e.target.value
-    )
 
-    if (
-      socketRef.current &&
-      socketRef.current.readyState === WebSocket.OPEN
-    ) {
+    setInput(value)
 
-      socketRef.current.send(
-        JSON.stringify({
+    if (!value.trim()) {
 
-          message: "",
-
-          status: "Open",
-
-          is_typing: true
-
-        })
-      )
+      return
     }
+
+    sendSocketMessage({
+
+      message: "",
+
+      status: "Open",
+
+      is_typing: true
+    })
   }
 
-
-  // =========================================
+  // =====================================
   // SEND MESSAGE
-  // =========================================
+  // =====================================
 
   const sendMessage = () => {
 
-    if (
-      !input.trim()
-    ) {
+    const trimmedMessage =
+      input.trim()
+
+    if (!trimmedMessage) {
 
       return
     }
 
-    if (
-      !socketRef.current ||
-      socketRef.current.readyState !== WebSocket.OPEN
-    ) {
-
-      console.log(
-        "WebSocket not connected"
-      )
+    if (!isConnected) {
 
       return
     }
 
-    socketRef.current.send(
-      JSON.stringify({
+    sendSocketMessage({
 
-        message: input.trim(),
+      message: trimmedMessage,
 
-        status: "Open",
+      status: "Open",
 
-        is_typing: false
-
-      })
-    )
+      is_typing: false
+    })
 
     setInput("")
   }
 
-
-  // =========================================
+  // =====================================
   // ENTER KEY
-  // =========================================
+  // =====================================
 
-  const handleKeyDown = (
-    e
-  ) => {
+  const handleKeyDown = (e) => {
 
     if (
-      e.key === "Enter"
+      e.key === "Enter" &&
+      !e.shiftKey
     ) {
+
+      e.preventDefault()
 
       sendMessage()
     }
   }
 
-
-  // =========================================
+  // =====================================
   // UPDATE STATUS
-  // =========================================
+  // =====================================
 
   const updateStatus = async (
     messageId,
@@ -467,22 +424,8 @@ function LiveChat() {
     try {
 
       await API.put(
+
         `/chat/status/${messageId}?status=${newStatus}`
-      )
-
-      setMessages((prev) =>
-
-        prev.map((msg) =>
-
-          msg.id === messageId
-
-            ? {
-                ...msg,
-                status: newStatus
-              }
-
-            : msg
-        )
       )
 
     } catch (error) {
@@ -494,10 +437,9 @@ function LiveChat() {
     }
   }
 
-
-  // =========================================
-  // STATUS COLOR
-  // =========================================
+  // =====================================
+  // STATUS COLORS
+  // =====================================
 
   const getStatusColor = (
     status
@@ -506,46 +448,58 @@ function LiveChat() {
     switch (status) {
 
       case "Open":
+
         return "bg-red-500/20 text-red-300 border border-red-500/30"
 
       case "In Progress":
+
         return "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
 
       case "Resolved":
+
         return "bg-green-500/20 text-green-300 border border-green-500/30"
 
       case "Closed":
+
         return "bg-slate-500/20 text-slate-300 border border-slate-500/30"
 
       default:
+
         return "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
     }
   }
 
-
   return (
 
     <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 md:p-6 shadow-xl mt-8">
+
+      {/* HEADER */}
 
       <div className="flex items-center justify-between mb-6">
 
         <div>
 
           <h2 className="text-3xl font-bold text-white">
+
             Live Support Chat
+
           </h2>
 
           <p className="text-slate-400">
+
             Real-time communication system
+
           </p>
 
         </div>
 
-        <div className={`px-4 py-2 rounded-full text-sm font-semibold ${
-          isConnected
-            ? "bg-green-500/20 text-green-400"
-            : "bg-red-500/20 text-red-400"
-        }`}>
+        <div
+          className={`px-4 py-2 rounded-full text-sm font-semibold ${
+            isConnected
+              ? "bg-green-500/20 text-green-400"
+              : "bg-red-500/20 text-red-400"
+          }`}
+        >
 
           {
             isConnected
@@ -557,13 +511,25 @@ function LiveChat() {
 
       </div>
 
+      {/* CHAT BOX */}
+
       <div className="bg-slate-950 rounded-3xl h-[500px] overflow-y-auto p-5 space-y-5 border border-slate-800">
 
         {
           loading ? (
 
             <p className="text-slate-400">
+
               Loading chat...
+
+            </p>
+
+          ) : messages.length === 0 ? (
+
+            <p className="text-slate-500 text-center">
+
+              No messages yet
+
             </p>
 
           ) : (
@@ -571,7 +537,8 @@ function LiveChat() {
             messages.map((msg) => {
 
               const isOwnMessage =
-                msg.sender === fullName
+
+                msg.email === email
 
               return (
 
@@ -584,22 +551,39 @@ function LiveChat() {
                   }`}
                 >
 
-                  <div className={`max-w-[75%] rounded-3xl p-4 border ${
-                    isOwnMessage
-                      ? "bg-cyan-500/20 border-cyan-500/30"
-                      : "bg-slate-800 border-slate-700"
-                  }`}>
+                  <div
+                    className={`max-w-[75%] rounded-3xl p-4 border ${
+                      isOwnMessage
+                        ? "bg-cyan-500/20 border-cyan-500/30"
+                        : "bg-slate-800 border-slate-700"
+                    }`}
+                  >
 
-                    <div className="flex justify-between gap-4 mb-2">
+                    <div className="flex justify-between gap-4 mb-3">
 
                       <div>
 
                         <h3 className="font-bold text-cyan-300">
+
                           {msg.sender}
+
                         </h3>
 
                         <p className="text-xs text-slate-400">
+
                           {msg.email}
+
+                        </p>
+
+                        <p className="text-xs text-slate-500 mt-1">
+
+                          {
+                            formatTimestamp(
+                              msg.created_at ||
+                              msg.timestamp
+                            )
+                          }
+
                         </p>
 
                       </div>
@@ -617,7 +601,7 @@ function LiveChat() {
                                 e.target.value
                               )
                             }
-                            className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm"
+                            className="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"
                           >
 
                             <option value="Open">
@@ -640,21 +624,24 @@ function LiveChat() {
 
                         ) : (
 
-                          <span className={`text-xs px-3 py-1 rounded-full ${getStatusColor(
-                            msg.status
-                          )}`}>
+                          <span
+                            className={`text-xs px-3 py-1 rounded-full ${getStatusColor(
+                              msg.status
+                            )}`}
+                          >
 
                             {msg.status}
 
                           </span>
-
                         )
                       }
 
                     </div>
 
-                    <p className="text-white break-words">
+                    <p className="text-white whitespace-pre-wrap break-words leading-relaxed">
+
                       {msg.message}
+
                     </p>
 
                   </div>
@@ -669,15 +656,20 @@ function LiveChat() {
 
       </div>
 
+      {/* TYPING */}
+
       {
         typingUser && (
 
           <p className="text-cyan-400 text-sm mt-3">
-            {typingUser} is typing...
-          </p>
 
+            {typingUser} is typing...
+
+          </p>
         )
       }
+
+      {/* INPUT */}
 
       <div className="flex gap-3 mt-5">
 
@@ -692,7 +684,12 @@ function LiveChat() {
 
         <button
           onClick={sendMessage}
-          className="bg-cyan-500 hover:bg-cyan-600 px-6 py-4 rounded-2xl font-semibold flex items-center gap-2 text-black"
+          disabled={!isConnected}
+          className={`px-6 py-4 rounded-2xl font-semibold flex items-center gap-2 ${
+            isConnected
+              ? "bg-cyan-500 hover:bg-cyan-600 text-black"
+              : "bg-slate-700 text-slate-400 cursor-not-allowed"
+          }`}
         >
 
           <FiSend />

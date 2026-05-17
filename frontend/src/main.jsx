@@ -10,6 +10,10 @@ import {
   NotificationProvider
 } from "./context/NotificationContext"
 
+import {
+  SocketProvider
+} from "./context/SocketContext"
+
 
 ReactDOM.createRoot(
   document.getElementById("root")
@@ -17,11 +21,15 @@ ReactDOM.createRoot(
 
   <BrowserRouter>
 
-    <NotificationProvider>
+    <SocketProvider>
 
-      <App />
+      <NotificationProvider>
 
-    </NotificationProvider>
+        <App />
+
+      </NotificationProvider>
+
+    </SocketProvider>
 
   </BrowserRouter>
 )

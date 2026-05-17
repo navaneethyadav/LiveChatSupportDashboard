@@ -17,6 +17,8 @@ function Tickets() {
 
   const [tickets, setTickets] = useState([])
 
+  const [supportUsers, setSupportUsers] = useState([])
+
   const [loading, setLoading] = useState(true)
 
   const [showModal, setShowModal] = useState(false)
@@ -25,6 +27,10 @@ function Tickets() {
 
   const [priorityFilter, setPriorityFilter] = useState("")
 
+
+  // =========================================
+  // FETCH TICKETS
+  // =========================================
 
   const fetchTickets = async () => {
 
@@ -49,12 +55,71 @@ function Tickets() {
   }
 
 
+  // =========================================
+  // FETCH SUPPORT USERS
+  // =========================================
+
+  const fetchSupportUsers = async () => {
+
+    try {
+
+      const response = await API.get(
+        "/users"
+      )
+
+      const filteredUsers =
+        response.data.filter((user) =>
+
+          user.role === "admin" ||
+          user.role === "support"
+        )
+
+      setSupportUsers(filteredUsers)
+
+    } catch (error) {
+
+      console.log(error)
+    }
+  }
+
+
+  // =========================================
+  // INITIAL LOAD
+  // =========================================
+
   useEffect(() => {
 
-    fetchTickets()
+    let mounted = true
+
+    const loadData = async () => {
+
+      if (!mounted) {
+
+        return
+      }
+
+      await Promise.all([
+
+        fetchTickets(),
+
+        fetchSupportUsers()
+
+      ])
+    }
+
+    loadData()
+
+    return () => {
+
+      mounted = false
+    }
 
   }, [])
 
+
+  // =========================================
+  // FILTER TICKETS
+  // =========================================
 
   const filteredTickets = tickets.filter((ticket) => {
 
@@ -88,16 +153,22 @@ function Tickets() {
 
         <div className="p-4 md:p-8">
 
+          {/* HEADER */}
+
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
 
             <div>
 
               <h1 className="text-3xl md:text-4xl font-bold mb-2">
+
                 Tickets
+
               </h1>
 
               <p className="text-slate-400">
+
                 Manage customer support tickets
+
               </p>
 
             </div>
@@ -106,11 +177,15 @@ function Tickets() {
               onClick={() => setShowModal(true)}
               className="bg-cyan-500 hover:bg-cyan-600 transition px-6 py-3 rounded-xl font-semibold"
             >
+
               + Create Ticket
+
             </button>
 
           </div>
 
+
+          {/* FILTERS */}
 
           <div className="flex flex-col md:flex-row gap-4 mb-8">
 
@@ -154,6 +229,8 @@ function Tickets() {
           </div>
 
 
+          {/* CONTENT */}
+
           {
             loading ? (
 
@@ -164,7 +241,9 @@ function Tickets() {
                   <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
 
                   <p className="text-slate-400">
+
                     Loading tickets...
+
                   </p>
 
                 </div>
@@ -178,11 +257,15 @@ function Tickets() {
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-10 text-center">
 
                   <h2 className="text-2xl font-bold mb-3">
+
                     No Tickets Found
+
                   </h2>
 
                   <p className="text-slate-400">
+
                     Try adjusting your search or create a new ticket.
+
                   </p>
 
                 </div>
@@ -198,6 +281,7 @@ function Tickets() {
                         key={ticket.id}
                         ticket={ticket}
                         refreshTickets={fetchTickets}
+                        supportUsers={supportUsers}
                       />
 
                     ))
@@ -214,6 +298,8 @@ function Tickets() {
 
       </div>
 
+
+      {/* CREATE MODAL */}
 
       {
         showModal && (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import LogsPanel from "../components/LogsPanel"
 
@@ -40,6 +40,8 @@ function Dashboard() {
 
   const [loading, setLoading] = useState(true)
 
+  const hasFetchedRef = useRef(false)
+
   const role = localStorage.getItem(
     "role"
   )
@@ -49,22 +51,33 @@ function Dashboard() {
   )
 
 
+  // =====================================
+  // FETCH STATS
+  // =====================================
+
   const fetchStats = async () => {
 
     try {
 
-      if (role === "admin") {
+      if (role !== "admin") {
 
-        const response = await API.get(
-          "/dashboard/stats"
-        )
+        setLoading(false)
 
-        setStats(response.data)
+        return
       }
+
+      const response = await API.get(
+        "/dashboard/stats"
+      )
+
+      setStats(response.data)
 
     } catch (error) {
 
-      console.log(error)
+      console.log(
+        "Dashboard Stats Error:",
+        error
+      )
 
     } finally {
 
@@ -73,12 +86,28 @@ function Dashboard() {
   }
 
 
+  // =====================================
+  // INITIAL LOAD
+  // =====================================
+
   useEffect(() => {
+
+    // PREVENT DOUBLE API CALLS
+    if (hasFetchedRef.current) {
+
+      return
+    }
+
+    hasFetchedRef.current = true
 
     fetchStats()
 
   }, [])
 
+
+  // =====================================
+  // LOADING
+  // =====================================
 
   if (loading) {
 
@@ -91,11 +120,15 @@ function Dashboard() {
           <div className="w-14 h-14 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-5"></div>
 
           <h2 className="text-2xl font-bold mb-2">
+
             Loading Dashboard
+
           </h2>
 
           <p className="text-slate-400">
+
             Fetching latest support data...
+
           </p>
 
         </div>
@@ -107,57 +140,76 @@ function Dashboard() {
 
   return (
 
-    <div className="flex bg-slate-950 min-h-screen text-white">
+    <div className="flex min-h-screen bg-slate-950 text-white overflow-hidden">
+
+      {/* SIDEBAR */}
 
       <Sidebar />
 
 
-      <div className="flex-1 w-full overflow-hidden">
+      {/* MAIN CONTENT */}
 
-        <div className="p-4 md:p-8 pt-24 md:pt-8">
+      <main className="flex-1 overflow-y-auto">
 
-          {/* Header */}
+        <div className="p-4 md:p-8 pt-24 md:pt-8 max-w-[1700px] mx-auto">
 
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+
+          {/* HEADER */}
+
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-10">
 
             <div>
 
               {
-                role === "admin" ? (
+                role === "admin"
 
-                  <>
+                  ? (
 
-                    <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                      Dashboard
-                    </h1>
+                    <>
 
-                    <p className="text-slate-400">
-                      Monitor support operations
-                    </p>
+                      <h1 className="text-4xl font-bold mb-3 tracking-tight">
 
-                  </>
+                        Support Dashboard
 
-                ) : (
+                      </h1>
 
-                  <>
+                      <p className="text-slate-400 text-lg">
 
-                    <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                      My Support Center
-                    </h1>
+                        Monitor support operations and real-time activities
 
-                    <p className="text-slate-400">
-                      Welcome back, {fullName}
-                    </p>
+                      </p>
 
-                  </>
+                    </>
 
-                )
+                  )
+
+                  : (
+
+                    <>
+
+                      <h1 className="text-4xl font-bold mb-3 tracking-tight">
+
+                        My Support Center
+
+                      </h1>
+
+                      <p className="text-slate-400 text-lg">
+
+                        Welcome back, {fullName}
+
+                      </p>
+
+                    </>
+
+                  )
               }
 
             </div>
 
 
-            <div className="self-start md:self-auto">
+            {/* NOTIFICATION */}
+
+            <div className="self-start lg:self-auto">
 
               <NotificationBell />
 
@@ -166,58 +218,102 @@ function Dashboard() {
           </div>
 
 
-          {/* Admin Analytics */}
+          {/* ADMIN DASHBOARD */}
 
           {
             role === "admin" && (
 
               <>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+                {/* STATS */}
 
-                  <StatsCard
-                    title="Total Tickets"
-                    value={stats.total_tickets}
-                    icon={<FiLayers />}
-                    color="bg-cyan-500/20 text-cyan-400"
-                  />
+                <section className="mb-10">
 
-                  <StatsCard
-                    title="Open Tickets"
-                    value={stats.open_tickets}
-                    icon={<FiClipboard />}
-                    color="bg-yellow-500/20 text-yellow-400"
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4 gap-6">
 
-                  <StatsCard
-                    title="Resolved Tickets"
-                    value={stats.resolved_tickets}
-                    icon={<FiCheckCircle />}
-                    color="bg-green-500/20 text-green-400"
-                  />
+                    <StatsCard
+                      title="Total Tickets"
+                      value={stats.total_tickets}
+                      icon={<FiLayers />}
+                      color="bg-cyan-500/20 text-cyan-400"
+                    />
 
-                  <StatsCard
-                    title="High Priority"
-                    value={stats.high_priority}
-                    icon={<FiAlertTriangle />}
-                    color="bg-red-500/20 text-red-400"
-                  />
+                    <StatsCard
+                      title="Open Tickets"
+                      value={stats.open_tickets}
+                      icon={<FiClipboard />}
+                      color="bg-yellow-500/20 text-yellow-400"
+                    />
 
-                </div>
+                    <StatsCard
+                      title="Resolved Tickets"
+                      value={stats.resolved_tickets}
+                      icon={<FiCheckCircle />}
+                      color="bg-green-500/20 text-green-400"
+                    />
+
+                    <StatsCard
+                      title="High Priority"
+                      value={stats.high_priority}
+                      icon={<FiAlertTriangle />}
+                      color="bg-red-500/20 text-red-400"
+                    />
+
+                  </div>
+
+                </section>
 
 
-                <div className="mb-8">
+                {/* CHART + LOGS */}
 
-                  <TicketsChart stats={stats} />
+                <section className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-10">
 
-                </div>
+                  <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl">
+
+                    <div className="mb-6">
+
+                      <h2 className="text-2xl font-bold mb-2">
+
+                        Ticket Analytics
+
+                      </h2>
+
+                      <p className="text-slate-400">
+
+                        Overview of support ticket performance
+
+                      </p>
+
+                    </div>
+
+                    <TicketsChart stats={stats} />
+
+                  </div>
 
 
-                <div className="mb-8">
+                  <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 shadow-xl overflow-hidden">
 
-                  <LogsPanel />
+                    <div className="mb-6">
 
-                </div>
+                      <h2 className="text-2xl font-bold mb-2">
+
+                        Activity Logs
+
+                      </h2>
+
+                      <p className="text-slate-400">
+
+                        Latest platform activities
+
+                      </p>
+
+                    </div>
+
+                    <LogsPanel />
+
+                  </div>
+
+                </section>
 
               </>
 
@@ -225,18 +321,22 @@ function Dashboard() {
           }
 
 
-          {/* Live Chat */}
+          {/* LIVE CHAT */}
 
-          <LiveChat />
+          <section className="mb-10">
 
+            <LiveChat />
 
-          {/* AI Chatbot */}
-
-          <AIChatbot />
+          </section>
 
         </div>
 
-      </div>
+      </main>
+
+
+      {/* AI CHATBOT */}
+
+      <AIChatbot />
 
     </div>
   )

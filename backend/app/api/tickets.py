@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.models.logs import Log
 from app.models.feedback import Feedback
+from app.models.notifications import Notification
+from app.models.ticket_reply import TicketReply
 
 from app.db.deps import (
     get_db,
@@ -22,7 +24,11 @@ from app.schemas.ticket_schema import (
     TicketAssign
 )
 
-from app.core.security import require_admin
+from app.core.security import (
+    require_admin,
+    require_support_or_admin,
+    require_ticket_access
+)
 
 import os
 import shutil
@@ -31,7 +37,6 @@ import uuid
 
 router = APIRouter()
 
-
 UPLOAD_DIR = "uploads"
 
 
@@ -39,6 +44,10 @@ if not os.path.exists(UPLOAD_DIR):
 
     os.makedirs(UPLOAD_DIR)
 
+
+# =========================================
+# CREATE TICKET
+# =========================================
 
 @router.post("/tickets")
 async def create_ticket(
@@ -105,6 +114,32 @@ async def create_ticket(
 
     db.refresh(new_ticket)
 
+    # =====================================
+    # ADMIN NOTIFICATIONS
+    # =====================================
+
+    admins = db.query(User).filter(
+        User.role == "admin"
+    ).all()
+
+    for admin in admins:
+
+        notification = Notification(
+
+            user_id=admin.id,
+
+            title="New Ticket Created",
+
+            message=f"{current_user.full_name} created Ticket #{new_ticket.id}"
+
+        )
+
+        db.add(notification)
+
+    # =====================================
+    # LOGS
+    # =====================================
+
     log = Log(
         action=f"Ticket #{new_ticket.id} created by {current_user.full_name}"
     )
@@ -124,6 +159,10 @@ async def create_ticket(
     }
 
 
+# =========================================
+# GET TICKETS
+# =========================================
+
 @router.get("/tickets")
 def get_tickets(
 
@@ -135,6 +174,8 @@ def get_tickets(
 
 ):
 
+    # ADMIN
+
     if current_user.role == "admin":
 
         tickets = db.query(
@@ -143,18 +184,38 @@ def get_tickets(
             Ticket.id.desc()
         ).all()
 
-    else:
+        return tickets
+
+    # SUPPORT
+
+    if current_user.role == "support":
 
         tickets = db.query(
             Ticket
         ).filter(
-            Ticket.created_by == current_user.id
+            Ticket.assigned_to == current_user.full_name
         ).order_by(
             Ticket.id.desc()
         ).all()
 
+        return tickets
+
+    # USER
+
+    tickets = db.query(
+        Ticket
+    ).filter(
+        Ticket.created_by == current_user.id
+    ).order_by(
+        Ticket.id.desc()
+    ).all()
+
     return tickets
 
+
+# =========================================
+# UPDATE TICKET STATUS
+# =========================================
 
 @router.put("/tickets/{ticket_id}")
 async def update_ticket_status(
@@ -171,7 +232,7 @@ async def update_ticket_status(
 
 ):
 
-    require_admin(
+    require_support_or_admin(
         current_user
     )
 
@@ -189,11 +250,36 @@ async def update_ticket_status(
 
         )
 
+    require_ticket_access(
+        current_user,
+        ticket
+    )
+
     ticket.status = status
 
     db.commit()
 
     db.refresh(ticket)
+
+    # =====================================
+    # USER NOTIFICATION
+    # =====================================
+
+    notification = Notification(
+
+        user_id=ticket.created_by,
+
+        title="Ticket Status Updated",
+
+        message=f"Ticket #{ticket.id} marked as {status}"
+
+    )
+
+    db.add(notification)
+
+    # =====================================
+    # LOGS
+    # =====================================
 
     log = Log(
         action=f"Ticket #{ticket.id} marked as {status} by {current_user.full_name}"
@@ -211,6 +297,10 @@ async def update_ticket_status(
 
     }
 
+
+# =========================================
+# ASSIGN TICKET
+# =========================================
 
 @router.put("/tickets/{ticket_id}/assign")
 async def assign_ticket(
@@ -247,9 +337,37 @@ async def assign_ticket(
 
     ticket.assigned_to = payload.assigned_to
 
+    ticket.status = "In Progress"
+
     db.commit()
 
     db.refresh(ticket)
+
+    # =====================================
+    # FIND SUPPORT USER
+    # =====================================
+
+    support_user = db.query(User).filter(
+        User.full_name == payload.assigned_to
+    ).first()
+
+    if support_user:
+
+        notification = Notification(
+
+            user_id=support_user.id,
+
+            title="New Ticket Assigned",
+
+            message=f"You were assigned Ticket #{ticket.id}"
+
+        )
+
+        db.add(notification)
+
+    # =====================================
+    # LOGS
+    # =====================================
 
     log = Log(
         action=f"Ticket #{ticket.id} assigned to {payload.assigned_to} by {current_user.full_name}"
@@ -267,6 +385,10 @@ async def assign_ticket(
 
     }
 
+
+# =========================================
+# DELETE TICKET
+# =========================================
 
 @router.delete("/tickets/{ticket_id}")
 def delete_ticket(
@@ -301,6 +423,24 @@ def delete_ticket(
 
     try:
 
+        # =================================
+        # DELETE TICKET REPLIES
+        # =================================
+
+        replies = db.query(
+            TicketReply
+        ).filter(
+            TicketReply.ticket_id == ticket_id
+        ).all()
+
+        for reply in replies:
+
+            db.delete(reply)
+
+        # =================================
+        # DELETE FEEDBACKS
+        # =================================
+
         feedbacks = db.query(
             Feedback
         ).filter(
@@ -311,15 +451,27 @@ def delete_ticket(
 
             db.delete(feedback)
 
+        # =================================
+        # DELETE ATTACHMENT
+        # =================================
+
         if ticket.attachment:
 
             if os.path.exists(ticket.attachment):
 
                 os.remove(ticket.attachment)
 
+        # =================================
+        # DELETE TICKET
+        # =================================
+
         db.delete(ticket)
 
         db.commit()
+
+        # =================================
+        # LOGS
+        # =================================
 
         log = Log(
             action=f"Ticket #{ticket.id} deleted by {current_user.full_name}"
@@ -328,6 +480,10 @@ def delete_ticket(
         db.add(log)
 
         db.commit()
+
+        print(
+            f"Ticket #{ticket.id} deleted successfully"
+        )
 
         return {
 
@@ -341,7 +497,7 @@ def delete_ticket(
 
         print(
             "Delete Ticket Error:",
-            e
+            str(e)
         )
 
         raise HTTPException(
@@ -351,4 +507,4 @@ def delete_ticket(
             detail="Failed to delete ticket"
 
         )
-        
+    

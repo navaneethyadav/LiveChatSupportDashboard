@@ -10,6 +10,8 @@ import Tickets from "./pages/Tickets"
 
 import AdminPanel from "./pages/AdminPanel"
 
+import Feedbacks from "./pages/Feedbacks"
+
 import ForgotPassword from "./pages/ForgotPassword"
 
 import ResetPassword from "./pages/ResetPassword"
@@ -70,6 +72,16 @@ function App() {
         element={
           <ProtectedRoute>
             <Tickets />
+          </ProtectedRoute>
+        }
+      />
+
+
+      <Route
+        path="/feedbacks"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <Feedbacks />
           </ProtectedRoute>
         }
       />

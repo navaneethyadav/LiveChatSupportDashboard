@@ -314,6 +314,17 @@ def login(
             detail="Invalid email or password"
         )
 
+    # =====================================
+    # EMAIL VERIFICATION CHECK
+    # =====================================
+
+    if not existing_user.is_verified:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Please verify your email before login"
+        )
+
     print(
         "LOGIN SECRET =>",
         SECRET_KEY

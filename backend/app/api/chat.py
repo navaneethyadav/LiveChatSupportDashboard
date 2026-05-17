@@ -20,17 +20,35 @@ from app.core.security import SECRET_KEY
 
 from datetime import datetime
 
+import pytz
 import json
 
 
 router = APIRouter()
 
 
+# =========================================
+# INDIA TIMEZONE
+# =========================================
+
+india_timezone = pytz.timezone(
+    "Asia/Kolkata"
+)
+
+
+# =========================================
+# CONNECTION MANAGER
+# =========================================
+
 class ConnectionManager:
 
     def __init__(self):
 
         self.active_connections = set()
+
+    # =====================================
+    # CONNECT
+    # =====================================
 
     async def connect(
         self,
@@ -43,6 +61,10 @@ class ConnectionManager:
             websocket
         )
 
+    # =====================================
+    # DISCONNECT
+    # =====================================
+
     def disconnect(
         self,
         websocket: WebSocket
@@ -52,19 +74,32 @@ class ConnectionManager:
             websocket
         )
 
-    async def broadcast(
+    # =====================================
+    # SEND EVENT
+    # =====================================
+
+    async def send_event(
         self,
-        message_data: dict
+        event_type: str,
+        data: dict
     ):
 
         disconnected_connections = set()
+
+        event_payload = {
+
+            "type": event_type,
+
+            "data": data
+
+        }
 
         for connection in self.active_connections.copy():
 
             try:
 
                 await connection.send_text(
-                    json.dumps(message_data)
+                    json.dumps(event_payload)
                 )
 
             except Exception:
@@ -78,6 +113,76 @@ class ConnectionManager:
             self.disconnect(
                 dead_connection
             )
+
+    # =====================================
+    # CHAT MESSAGE EVENT
+    # =====================================
+
+    async def broadcast_chat_message(
+        self,
+        message_data: dict
+    ):
+
+        await self.send_event(
+            "chat_message",
+            message_data
+        )
+
+    # =====================================
+    # TYPING EVENT
+    # =====================================
+
+    async def broadcast_typing(
+        self,
+        typing_data: dict
+    ):
+
+        await self.send_event(
+            "typing",
+            typing_data
+        )
+
+    # =====================================
+    # STATUS UPDATE EVENT
+    # =====================================
+
+    async def broadcast_status_update(
+        self,
+        status_data: dict
+    ):
+
+        await self.send_event(
+            "chat_status_updated",
+            status_data
+        )
+
+    # =====================================
+    # NOTIFICATION EVENT
+    # =====================================
+
+    async def broadcast_notification(
+        self,
+        notification_data: dict
+    ):
+
+        await self.send_event(
+            "notification",
+            notification_data
+        )
+
+    # =====================================
+    # DASHBOARD EVENT
+    # =====================================
+
+    async def broadcast_dashboard_update(
+        self,
+        dashboard_data: dict
+    ):
+
+        await self.send_event(
+            "dashboard_update",
+            dashboard_data
+        )
 
 
 manager = ConnectionManager()
@@ -124,7 +229,7 @@ def get_chat_messages(
 # =========================================
 
 @router.put("/chat/status/{message_id}")
-def update_chat_status(
+async def update_chat_status(
 
     message_id: int,
 
@@ -153,9 +258,21 @@ def update_chat_status(
 
     db.refresh(message)
 
+    await manager.broadcast_status_update({
+
+        "id":
+        message.id,
+
+        "status":
+        message.status
+
+    })
+
     return {
+
         "message":
         "Status updated successfully"
+
     }
 
 
@@ -167,10 +284,6 @@ def update_chat_status(
 async def websocket_chat(
     websocket: WebSocket
 ):
-
-    # =========================================
-    # GET TOKEN
-    # =========================================
 
     raw_token = websocket.query_params.get(
         "token"
@@ -184,46 +297,19 @@ async def websocket_chat(
 
     if not token:
 
-        print(
-            "WebSocket Error: No token provided"
-        )
-
         await websocket.close(
             code=1008
         )
 
         return
 
-    # =========================================
-    # VERIFY TOKEN
-    # =========================================
-
     try:
-
-        print(
-            "WS SECRET_KEY:",
-            SECRET_KEY
-        )
-
-        print(
-            "WS TOKEN:",
-            token
-        )
 
         payload = verify_access_token(
             token
         )
 
-        print(
-            "WS PAYLOAD:",
-            payload
-        )
-
         if not payload:
-
-            print(
-                "WebSocket Error: Invalid payload"
-            )
 
             await websocket.close(
                 code=1008
@@ -237,32 +323,19 @@ async def websocket_chat(
 
         if not email:
 
-            print(
-                "WebSocket Error: No email in token"
-            )
-
             await websocket.close(
                 code=1008
             )
 
             return
 
-    except Exception as e:
-
-        print(
-            "WebSocket Auth Error:",
-            str(e)
-        )
+    except Exception:
 
         await websocket.close(
             code=1008
         )
 
         return
-
-    # =========================================
-    # CONNECT
-    # =========================================
 
     await manager.connect(
         websocket
@@ -282,10 +355,6 @@ async def websocket_chat(
 
         if not user:
 
-            print(
-                "WebSocket Error: User not found"
-            )
-
             manager.disconnect(
                 websocket
             )
@@ -293,10 +362,6 @@ async def websocket_chat(
             await websocket.close()
 
             return
-
-        # =========================================
-        # RECEIVE LOOP
-        # =========================================
 
         while True:
 
@@ -321,85 +386,108 @@ async def websocket_chat(
                 False
             )
 
-            timestamp = datetime.now().strftime(
-                "%I:%M %p"
+            # =====================================
+            # INDIA TIME
+            # =====================================
+
+            timestamp = datetime.now(
+                india_timezone
+            ).isoformat()
+
+            # =====================================
+            # TYPING EVENT
+            # =====================================
+
+            if is_typing:
+
+                await manager.broadcast_typing({
+
+                    "sender":
+                    user.full_name,
+
+                    "email":
+                    user.email,
+
+                    "role":
+                    user.role,
+
+                    "timestamp":
+                    timestamp
+
+                })
+
+                continue
+
+            clean_message = message.strip()
+
+            if not clean_message:
+
+                continue
+
+            # =====================================
+            # SAVE MESSAGE
+            # =====================================
+
+            new_message = ChatMessage(
+
+                sender=user.full_name,
+
+                email=user.email,
+
+                role=user.role,
+
+                status=status,
+
+                receiver="Support",
+
+                message=clean_message
+
             )
 
-            saved_message = None
+            db.add(new_message)
 
-            # SAVE ONLY REAL MESSAGES
-            if (
-                not is_typing and
-                message.strip()
-            ):
+            db.commit()
 
-                new_message = ChatMessage(
+            db.refresh(new_message)
 
-                    sender=user.full_name,
+            print(
+                f"{user.full_name}: {clean_message}"
+            )
 
-                    email=user.email,
-
-                    role=user.role,
-
-                    status=status,
-
-                    receiver="Support",
-
-                    message=message.strip()
-
-                )
-
-                db.add(
-                    new_message
-                )
-
-                db.commit()
-
-                db.refresh(
-                    new_message
-                )
-
-                saved_message = new_message
-
-                print(
-                    f"{user.full_name}: {message}"
-                )
-
-            # =========================================
-            # RESPONSE
-            # =========================================
+            # =====================================
+            # RESPONSE DATA
+            # =====================================
 
             response_data = {
 
                 "id":
-                saved_message.id
-                if saved_message
-                else None,
+                new_message.id,
 
                 "sender":
-                user.full_name,
+                new_message.sender,
 
                 "email":
-                user.email,
+                new_message.email,
 
                 "role":
-                user.role,
+                new_message.role,
 
                 "status":
-                status,
+                new_message.status,
 
                 "message":
-                message,
+                new_message.message,
 
-                "timestamp":
-                timestamp,
-
-                "is_typing":
-                is_typing
+                "created_at":
+                timestamp
 
             }
 
-            await manager.broadcast(
+            # =====================================
+            # REALTIME BROADCAST
+            # =====================================
+
+            await manager.broadcast_chat_message(
                 response_data
             )
 

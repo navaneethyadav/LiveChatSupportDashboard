@@ -11,39 +11,79 @@ function AdminPanel() {
 
   const [users, setUsers] = useState([])
 
-  const token = localStorage.getItem(
-    "token"
-  )
+  const [loading, setLoading] = useState(true)
+
+  const token = localStorage.getItem("token")
+
+  const loggedInEmail = localStorage.getItem("email")
 
 
   const fetchUsers = async () => {
 
     try {
 
+      setLoading(true)
+
       const response = await API.get(
-        "/users"
+        "/users",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       )
 
-      setUsers(
-        response.data
-      )
+      setUsers(response.data)
 
     } catch (error) {
 
       console.log(error)
+
+      toast.error(
+        "Failed to load users"
+      )
+
+    } finally {
+
+      setLoading(false)
     }
   }
 
 
   const updateRole = async (
     userId,
-    role
+    role,
+    email
   ) => {
+
+    if (email === loggedInEmail) {
+
+      toast.error(
+        "You cannot change your own role"
+      )
+
+      return
+    }
+
+    const confirmAction = window.confirm(
+      `Are you sure you want to change this user role to ${role}?`
+    )
+
+    if (!confirmAction) {
+
+      return
+    }
 
     try {
 
       await API.put(
-        `/users/${userId}/role?role=${role}`
+        `/users/${userId}/role?role=${role}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
       )
 
       toast.success(
@@ -53,6 +93,8 @@ function AdminPanel() {
       fetchUsers()
 
     } catch (error) {
+
+      console.log(error)
 
       toast.error(
         "Failed to update role"
@@ -116,11 +158,42 @@ function AdminPanel() {
   }
 
 
+  const getRoleStyle = (role) => {
+
+    if (role === "admin") {
+
+      return "bg-red-500/20 text-red-400"
+    }
+
+    if (role === "support") {
+
+      return "bg-yellow-500/20 text-yellow-400"
+    }
+
+    return "bg-cyan-500/20 text-cyan-400"
+  }
+
+
   useEffect(() => {
 
-    fetchUsers()
+  let mounted = true
 
-  }, [])
+  const loadUsers = async () => {
+
+    if (mounted) {
+
+      await fetchUsers()
+    }
+  }
+
+  loadUsers()
+
+  return () => {
+
+    mounted = false
+  }
+
+}, [])
 
 
   return (
@@ -171,149 +244,165 @@ function AdminPanel() {
           </div>
 
 
-          <div className="overflow-x-auto">
+          {
+            loading ? (
 
-            <table className="w-full">
+              <div className="text-center py-10 text-slate-400">
 
-              <thead>
+                Loading users...
 
-                <tr className="border-b border-slate-700 text-left">
+              </div>
 
-                  <th className="py-4">
+            ) : (
 
-                    ID
+              <div className="overflow-x-auto">
 
-                  </th>
+                <table className="w-full">
 
-                  <th className="py-4">
+                  <thead>
 
-                    Full Name
+                    <tr className="border-b border-slate-700 text-left">
 
-                  </th>
+                      <th className="py-4">
 
-                  <th className="py-4">
+                        ID
 
-                    Email
+                      </th>
 
-                  </th>
+                      <th className="py-4">
 
-                  <th className="py-4">
+                        Full Name
 
-                    Role
+                      </th>
 
-                  </th>
+                      <th className="py-4">
 
-                  <th className="py-4">
+                        Email
 
-                    Actions
+                      </th>
 
-                  </th>
+                      <th className="py-4">
 
-                </tr>
+                        Role
 
-              </thead>
+                      </th>
 
+                      <th className="py-4">
 
-              <tbody>
+                        Actions
 
-                {
-                  users.map((user) => (
-
-                    <tr
-                      key={user.id}
-                      className="border-b border-slate-800"
-                    >
-
-                      <td className="py-4">
-
-                        {user.id}
-
-                      </td>
-
-                      <td className="py-4">
-
-                        {user.full_name}
-
-                      </td>
-
-                      <td className="py-4">
-
-                        {user.email}
-
-                      </td>
-
-                      <td className="py-4">
-
-                        <span className="bg-cyan-500/20 text-cyan-400 px-3 py-1 rounded-full text-sm">
-
-                          {user.role}
-
-                        </span>
-
-                      </td>
-
-
-                      <td className="py-4">
-
-                        <div className="flex gap-2 flex-wrap">
-
-                          <button
-                            onClick={() =>
-                              updateRole(
-                                user.id,
-                                "admin"
-                              )
-                            }
-                            className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm"
-                          >
-
-                            Make Admin
-
-                          </button>
-
-
-                          <button
-                            onClick={() =>
-                              updateRole(
-                                user.id,
-                                "support"
-                              )
-                            }
-                            className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded-lg text-sm"
-                          >
-
-                            Make Support
-
-                          </button>
-
-
-                          <button
-                            onClick={() =>
-                              updateRole(
-                                user.id,
-                                "user"
-                              )
-                            }
-                            className="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg text-sm"
-                          >
-
-                            Make User
-
-                          </button>
-
-                        </div>
-
-                      </td>
+                      </th>
 
                     </tr>
-                  ))
-                }
 
-              </tbody>
+                  </thead>
 
-            </table>
 
-          </div>
+                  <tbody>
+
+                    {
+                      users.map((user) => (
+
+                        <tr
+                          key={user.id}
+                          className="border-b border-slate-800"
+                        >
+
+                          <td className="py-4">
+
+                            {user.id}
+
+                          </td>
+
+                          <td className="py-4 font-semibold">
+
+                            {user.full_name}
+
+                          </td>
+
+                          <td className="py-4 text-slate-300">
+
+                            {user.email}
+
+                          </td>
+
+                          <td className="py-4">
+
+                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getRoleStyle(user.role)}`}>
+
+                              {user.role}
+
+                            </span>
+
+                          </td>
+
+
+                          <td className="py-4">
+
+                            <div className="flex gap-2 flex-wrap">
+
+                              <button
+                                onClick={() =>
+                                  updateRole(
+                                    user.id,
+                                    "admin",
+                                    user.email
+                                  )
+                                }
+                                className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm"
+                              >
+
+                                Make Admin
+
+                              </button>
+
+
+                              <button
+                                onClick={() =>
+                                  updateRole(
+                                    user.id,
+                                    "support",
+                                    user.email
+                                  )
+                                }
+                                className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded-lg text-sm text-black"
+                              >
+
+                                Make Support
+
+                              </button>
+
+
+                              <button
+                                onClick={() =>
+                                  updateRole(
+                                    user.id,
+                                    "user",
+                                    user.email
+                                  )
+                                }
+                                className="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded-lg text-sm"
+                              >
+
+                                Make User
+
+                              </button>
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+                      ))
+                    }
+
+                  </tbody>
+
+                </table>
+
+              </div>
+            )
+          }
 
         </div>
 

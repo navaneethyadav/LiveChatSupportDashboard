@@ -11,8 +11,47 @@ function FeedbackForm({ ticketId }) {
 
   const [comment, setComment] = useState("")
 
+  const [submitted, setSubmitted] = useState(false)
+
+  const userRole = localStorage.getItem("role")
+
+
+  // Hide feedback form for admin/support
+
+  if (
+    userRole === "admin" ||
+    userRole === "support"
+  ) {
+
+    return (
+
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mt-4">
+
+        <h3 className="text-lg font-semibold mb-2 text-white">
+
+          Customer Feedback
+
+        </h3>
+
+        <p className="text-slate-400 text-sm">
+
+          Feedback can only be submitted by customers/users.
+
+        </p>
+
+      </div>
+    )
+  }
+
 
   const submitFeedback = async () => {
+
+    if (!comment.trim()) {
+
+      return toast.error(
+        "Please enter feedback comment"
+      )
+    }
 
     try {
 
@@ -26,8 +65,10 @@ function FeedbackForm({ ticketId }) {
       )
 
       toast.success(
-        "Feedback submitted"
+        "Feedback submitted successfully"
       )
+
+      setSubmitted(true)
 
       setComment("")
 
@@ -40,19 +81,46 @@ function FeedbackForm({ ticketId }) {
   }
 
 
+  if (submitted) {
+
+    return (
+
+      <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 mt-4">
+
+        <h3 className="text-green-400 font-semibold mb-2">
+
+          Feedback Submitted
+
+        </h3>
+
+        <p className="text-slate-300 text-sm">
+
+          Thank you for sharing your experience.
+
+        </p>
+
+      </div>
+    )
+  }
+
+
   return (
 
     <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 mt-4">
 
       <h3 className="text-lg font-semibold mb-4">
+
         Submit Feedback
+
       </h3>
 
 
       <div className="mb-4">
 
         <label className="block mb-2 text-sm text-slate-300">
+
           Rating
+
         </label>
 
         <select
@@ -91,7 +159,9 @@ function FeedbackForm({ ticketId }) {
       <div className="mb-4">
 
         <label className="block mb-2 text-sm text-slate-300">
+
           Comment
+
         </label>
 
         <textarea
@@ -111,7 +181,9 @@ function FeedbackForm({ ticketId }) {
         onClick={submitFeedback}
         className="bg-cyan-500 hover:bg-cyan-600 px-5 py-2 rounded-lg font-semibold"
       >
+
         Submit Feedback
+
       </button>
 
     </div>

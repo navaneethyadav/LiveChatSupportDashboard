@@ -2,7 +2,6 @@ from fastapi import FastAPI
 from fastapi import Depends
 
 from fastapi.middleware.cors import CORSMiddleware
-
 from fastapi.staticfiles import StaticFiles
 
 from sqlalchemy import text
@@ -11,6 +10,11 @@ import os
 
 from app.db.database import engine, Base
 
+
+# =========================================
+# MODELS
+# =========================================
+
 from app.models.users import User
 from app.models.tickets import Ticket
 from app.models.categories import Category
@@ -18,6 +22,13 @@ from app.models.feedback import Feedback
 from app.models.logs import Log
 from app.models.chat_message import ChatMessage
 from app.models.password_reset_token import PasswordResetToken
+from app.models.ticket_reply import TicketReply
+from app.models.notifications import Notification
+
+
+# =========================================
+# ROUTERS
+# =========================================
 
 from app.api.auth import router as auth_router
 from app.api.tickets import router as ticket_router
@@ -30,13 +41,22 @@ from app.api.users import router as users_router
 from app.api.export import router as export_router
 from app.api.test_email import router as test_email_router
 from app.api.chatbot import router as chatbot_router
+from app.api.ticket_replies import router as ticket_reply_router
+from app.api.notifications import router as notification_router
 
 from app.core.auth import get_current_user
 
 
+# =========================================
+# FASTAPI APP
+# =========================================
+
 app = FastAPI(
+
     title="SupportHub API",
+
     version="1.0.0"
+
 )
 
 
@@ -81,7 +101,7 @@ Base.metadata.create_all(
 with engine.connect() as conn:
 
     # =====================================
-    # CHAT_MESSAGES TABLE
+    # CHAT MESSAGES
     # =====================================
 
     conn.execute(text("""
@@ -100,7 +120,7 @@ with engine.connect() as conn:
     """))
 
     # =====================================
-    # USERS TABLE
+    # USERS
     # =====================================
 
     conn.execute(text("""
@@ -109,7 +129,7 @@ with engine.connect() as conn:
     """))
 
     # =====================================
-    # TICKETS TABLE
+    # TICKETS
     # =====================================
 
     conn.execute(text("""
@@ -118,7 +138,7 @@ with engine.connect() as conn:
     """))
 
     # =====================================
-    # MAKE DEFAULT ADMIN
+    # DEFAULT ADMIN
     # =====================================
 
     conn.execute(text("""
@@ -146,9 +166,13 @@ if not os.path.exists("uploads"):
 # =========================================
 
 app.mount(
+
     "/uploads",
+
     StaticFiles(directory="uploads"),
+
     name="uploads"
+
 )
 
 
@@ -165,44 +189,59 @@ app.include_router(chatbot_router)
 # PROTECTED ROUTES
 # =========================================
 
+protected_dependency = [
+    Depends(get_current_user)
+]
+
+
 app.include_router(
     ticket_router,
-    dependencies=[Depends(get_current_user)]
+    dependencies=protected_dependency
 )
 
 app.include_router(
     dashboard_router,
-    dependencies=[Depends(get_current_user)]
+    dependencies=protected_dependency
 )
 
 app.include_router(
     category_router,
-    dependencies=[Depends(get_current_user)]
-)
-
-app.include_router(
-    logs_router,
-    dependencies=[Depends(get_current_user)]
-)
-
-app.include_router(
-    users_router,
-    dependencies=[Depends(get_current_user)]
-)
-
-app.include_router(
-    export_router,
-    dependencies=[Depends(get_current_user)]
-)
-
-app.include_router(
-    test_email_router,
-    dependencies=[Depends(get_current_user)]
+    dependencies=protected_dependency
 )
 
 app.include_router(
     feedback_router,
-    dependencies=[Depends(get_current_user)]
+    dependencies=protected_dependency
+)
+
+app.include_router(
+    ticket_reply_router,
+    dependencies=protected_dependency
+)
+
+app.include_router(
+    notification_router,
+    dependencies=protected_dependency
+)
+
+app.include_router(
+    logs_router,
+    dependencies=protected_dependency
+)
+
+app.include_router(
+    users_router,
+    dependencies=protected_dependency
+)
+
+app.include_router(
+    export_router,
+    dependencies=protected_dependency
+)
+
+app.include_router(
+    test_email_router,
+    dependencies=protected_dependency
 )
 
 

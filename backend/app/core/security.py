@@ -105,8 +105,6 @@ def create_access_token(data: dict):
         algorithm=ALGORITHM
     )
 
-    print("TOKEN CREATED SUCCESSFULLY")
-
     return encoded_jwt
 
 
@@ -120,10 +118,6 @@ def verify_access_token(token: str):
             algorithms=[ALGORITHM]
         )
 
-        print(
-            "TOKEN VERIFIED SUCCESSFULLY"
-        )
-
         return payload
 
     except ExpiredSignatureError:
@@ -133,12 +127,7 @@ def verify_access_token(token: str):
             detail="Token expired"
         )
 
-    except JWTError as e:
-
-        print(
-            "JWT ERROR =>",
-            str(e)
-        )
+    except JWTError:
 
         raise HTTPException(
             status_code=401,
@@ -182,6 +171,10 @@ def get_current_user(
     return user
 
 
+# =========================================
+# ROLE SECURITY
+# =========================================
+
 def require_admin(current_user):
 
     if current_user.role != "admin":
@@ -192,6 +185,57 @@ def require_admin(current_user):
         )
 
     return current_user
+
+
+def require_support_or_admin(current_user):
+
+    if current_user.role not in [
+        "admin",
+        "support"
+    ]:
+
+        raise HTTPException(
+            status_code=403,
+            detail="Support or Admin access required"
+        )
+
+    return current_user
+
+
+def require_ticket_access(
+    current_user,
+    ticket
+):
+
+    # ADMIN CAN ACCESS EVERYTHING
+
+    if current_user.role == "admin":
+
+        return True
+
+    # SUPPORT CAN ACCESS ASSIGNED TICKETS
+
+    if (
+        current_user.role == "support"
+        and
+        ticket.assigned_to == current_user.full_name
+    ):
+
+        return True
+
+    # USER CAN ACCESS OWN TICKETS
+
+    if ticket.created_by == current_user.id:
+
+        return True
+
+    raise HTTPException(
+
+        status_code=403,
+
+        detail="Access denied for this ticket"
+
+    )
 
 
 # =========================================
@@ -315,4 +359,3 @@ def validate_password_strength(password: str):
         )
 
     return True
-    
